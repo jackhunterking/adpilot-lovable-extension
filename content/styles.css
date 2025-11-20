@@ -1,0 +1,53 @@
+/**
+ * AdPilot for Lovable - Content Styles
+ * 
+ * Matches Lovable's design system
+ */
+
+/* Ads tab button (matches Lovable's tab style) */
+#adpilot-ads-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#adpilot-ads-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+#adpilot-ads-tab.active {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgb(59, 130, 246);
+}
+
+#adpilot-ads-tab svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* AdPilot container */
+#adpilot-container {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Match Lovable color scheme */
+:root {
+  --adpilot-bg-primary: #0a0a0a;
+  --adpilot-bg-secondary: #1a1a1a;
+  --adpilot-bg-elevated: #2a2a2a;
+  --adpilot-border: rgba(255, 255, 255, 0.1);
+  --adpilot-text-primary: #ffffff;
+  --adpilot-text-secondary: rgba(255, 255, 255, 0.7);
+  --adpilot-accent: #3b82f6;
+}
+

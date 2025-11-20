@@ -1,0 +1,28 @@
+{
+  "name": "adpilot-lovable-extension",
+  "version": "0.1.0",
+  "description": "Chrome extension for AdPilot + Lovable integration",
+  "main": "background/service-worker.js",
+  "scripts": {
+    "package": "bash scripts/package.sh",
+    "validate": "node scripts/validate-manifest.js",
+    "clean": "rm -rf dist/ *.zip"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/adpilot-lovable-extension"
+  },
+  "keywords": [
+    "chrome-extension",
+    "lovable",
+    "adpilot",
+    "meta-ads",
+    "facebook-ads",
+    "instagram-ads",
+    "advertising"
+  ],
+  "author": "AdPilot",
+  "license": "MIT",
+  "private": false
+}
+

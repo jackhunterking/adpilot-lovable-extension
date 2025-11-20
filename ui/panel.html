@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdPilot for Lovable</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0a;
+      color: #ffffff;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    #root {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading AdPilot...</div>
+    </div>
+  </div>
+  
+  <script>
+    // Redirect to actual AdPilot UI service
+    // This HTML file is just a placeholder
+    // The iframe in inject.js loads directly from lovable.adpilot.com
+    
+    console.log('[AdPilot Panel] Panel HTML loaded');
+    
+    // Wait for project context
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'ADPILOT_PROJECT_CONTEXT') {
+        console.log('[AdPilot Panel] Project context received:', event.data.payload);
+        
+        // Store context for UI app
+        sessionStorage.setItem('adpilot_lovable_context', JSON.stringify(event.data.payload));
+        
+        // Show ready message
+        document.querySelector('.loading-text').textContent = 'Connected to project!';
+      }
+    });
+    
+    // Request context from extension
+    window.parent.postMessage({
+      type: 'ADPILOT_REQUEST_CONTEXT',
+      timestamp: Date.now()
+    }, '*');
+  </script>
+</body>
+</html>
+

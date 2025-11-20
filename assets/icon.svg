@@ -1,0 +1,16 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="#3B82F6"/>
+  
+  <!-- Megaphone icon (representing ads/announcements) -->
+  <path d="M96 24L40 48V80L96 104V24Z" fill="white"/>
+  <rect x="24" y="56" width="16" height="16" fill="white"/>
+  <path d="M96 94L56 80.8V47.2L96 34V94Z" fill="#3B82F6"/>
+  
+  <!-- Accent lines -->
+  <circle cx="100" cy="40" r="4" fill="white"/>
+  <circle cx="108" cy="50" r="3" fill="white"/>
+  <circle cx="100" cy="88" r="4" fill="white"/>
+  <circle cx="108" cy="78" r="3" fill="white"/>
+</svg>
+
