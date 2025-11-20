@@ -1,6 +1,6 @@
 {
   "name": "adpilot-lovable-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Chrome extension for AdPilot + Lovable integration",
   "main": "background/service-worker.js",
   "scripts": {

@@ -23,22 +23,66 @@
     #root {
       width: 100%;
       height: 100%;
-    }
-    
-    .loading {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 100%;
-      height: 100%;
-      flex-direction: column;
-      gap: 16px;
     }
     
-    .loading-spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(59, 130, 246, 0.3);
+    .panel-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      max-width: 500px;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #ffffff;
+      margin: 0;
+    }
+    
+    p {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.5;
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      font-size: 13px;
+      color: #3b82f6;
+    }
+    
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(59, 130, 246, 0.3);
       border-top-color: #3b82f6;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
@@ -48,46 +92,122 @@
       to { transform: rotate(360deg); }
     }
     
-    .loading-text {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 14px;
+    .info {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 20px;
+    }
+    
+    .project-info {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      text-align: left;
+      width: 100%;
+    }
+    
+    .project-info dt {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      margin-top: 8px;
+    }
+    
+    .project-info dt:first-child {
+      margin-top: 0;
+    }
+    
+    .project-info dd {
+      margin-left: 0;
+      margin-top: 4px;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
   <div id="root">
-    <div class="loading">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Loading AdPilot...</div>
+    <div class="panel-container">
+      <div class="logo">
+        <svg viewBox="0 0 16 16">
+          <path d="M13 2L3 6v4l10 4V2zM2 7h1v2H2V7zm13 5.5l-9-3.6V7.1l9-3.6v8.5z"/>
+        </svg>
+      </div>
+      
+      <h1>AdPilot for Lovable</h1>
+      
+      <p>Create and manage Meta ads directly from your Lovable editor</p>
+      
+      <div class="status">
+        <div class="spinner"></div>
+        <span id="status-text">Connecting to project...</span>
+      </div>
+      
+      <div id="project-info" class="project-info" style="display: none;">
+        <dl>
+          <dt>Project ID:</dt>
+          <dd id="project-id">-</dd>
+          <dt>Project URL:</dt>
+          <dd id="project-url">-</dd>
+        </dl>
+      </div>
+      
+      <p class="info">
+        UI service will be deployed to lovable.adpilot.com<br>
+        For now, this is a placeholder showing the extension works!
+      </p>
     </div>
   </div>
   
   <script>
-    // Redirect to actual AdPilot UI service
-    // This HTML file is just a placeholder
-    // The iframe in inject.js loads directly from lovable.adpilot.com
+    console.log('[AdPilot Panel] Panel loaded');
     
-    console.log('[AdPilot Panel] Panel HTML loaded');
-    
-    // Wait for project context
+    // Listen for project context from extension
     window.addEventListener('message', (event) => {
-      if (event.data.type === 'ADPILOT_PROJECT_CONTEXT') {
+      // Accept messages from parent (extension content script)
+      if (event.data && event.data.type === 'ADPILOT_PROJECT_CONTEXT') {
         console.log('[AdPilot Panel] Project context received:', event.data.payload);
         
-        // Store context for UI app
-        sessionStorage.setItem('adpilot_lovable_context', JSON.stringify(event.data.payload));
+        const { lovableProjectId, lovableProjectUrl } = event.data.payload;
         
-        // Show ready message
-        document.querySelector('.loading-text').textContent = 'Connected to project!';
+        // Update UI
+        document.getElementById('status-text').textContent = 'Connected to project ✓';
+        document.getElementById('project-id').textContent = lovableProjectId || 'Unknown';
+        document.getElementById('project-url').textContent = lovableProjectUrl || 'Unknown';
+        document.getElementById('project-info').style.display = 'block';
+        
+        // Store context
+        sessionStorage.setItem('adpilot_lovable_context', JSON.stringify(event.data.payload));
       }
     });
     
-    // Request context from extension
+    // Request context from extension on load
+    console.log('[AdPilot Panel] Requesting project context...');
     window.parent.postMessage({
       type: 'ADPILOT_REQUEST_CONTEXT',
       timestamp: Date.now()
     }, '*');
+    
+    // Retry every 2 seconds if no response
+    let retries = 0;
+    const retryInterval = setInterval(() => {
+      if (sessionStorage.getItem('adpilot_lovable_context')) {
+        clearInterval(retryInterval);
+        return;
+      }
+      
+      if (retries < 5) {
+        console.log('[AdPilot Panel] Retrying context request...', retries + 1);
+        window.parent.postMessage({
+          type: 'ADPILOT_REQUEST_CONTEXT',
+          timestamp: Date.now()
+        }, '*');
+        retries++;
+      } else {
+        clearInterval(retryInterval);
+        document.getElementById('status-text').textContent = 'Waiting for project info...';
+      }
+    }, 2000);
   </script>
 </body>
 </html>
-
