@@ -23,7 +23,7 @@ This extension adds an "Ads" tab to the Lovable editor, providing seamless acces
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/adpilot-lovable-extension.git
+git clone https://github.com/jackhunterking/adpilot-lovable-extension.git
 cd adpilot-lovable-extension
 
 # Load in Chrome
@@ -79,7 +79,7 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for Chrome Web Store submission instruct
 
 ## 🔗 Related Projects
 
-- **Main AdPilot:** [github.com/yourusername/adpilot](https://github.com/yourusername/adpilot)
+- **Main AdPilot:** [github.com/jackhunterking/AdPilot](https://github.com/jackhunterking/AdPilot)
 - **AdPilot API:** [api.adpilot.com](https://api.adpilot.com)
 - **Documentation:** [docs.adpilot.com](https://docs.adpilot.com)
 
@@ -125,7 +125,7 @@ Contributions are welcome! Please read our contributing guidelines first.
 
 ## 📧 Support
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/adpilot-lovable-extension/issues)
+- **Issues:** [GitHub Issues](https://github.com/jackhunterking/adpilot-lovable-extension/issues)
 - **Email:** support@adpilot.com
 - **Documentation:** [docs.adpilot.com](https://docs.adpilot.com)
 
