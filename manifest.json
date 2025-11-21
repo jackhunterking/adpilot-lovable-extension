@@ -16,7 +16,8 @@
   "host_permissions": [
     "https://lovable.dev/*",
     "https://*.lovable.dev/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "http://localhost:3000/*"
   ],
   "content_scripts": [
     {

@@ -1,0 +1,186 @@
+/**
+ * Feature: Ad Snapshot Schema
+ * Purpose: Single source of truth for ad setup data across wizard and results view
+ * References:
+ *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
+ *  - Supabase: https://supabase.com/docs/guides/database
+ */
+
+// ============================================================================
+// Ad Snapshot Types - Complete state from setup wizard
+// ============================================================================
+
+export interface AdCreativeSnapshot {
+  imageUrl?: string
+  imageVariations?: string[]
+  baseImageUrl?: string
+  selectedImageIndex: number | null
+  format?: 'feed' | 'story' | 'reel'
+}
+
+export interface AdCopySnapshot {
+  headline: string
+  primaryText: string
+  description: string
+  cta: string
+  selectedCopyIndex: number | null
+  // Store all variations for reference
+  variations?: Array<{
+    id: string
+    headline: string
+    primaryText: string
+    description: string
+    overlay?: {
+      headline?: string
+      offer?: string
+      body?: string
+      density?: 'none' | 'light' | 'medium' | 'heavy' | 'text-only'
+    }
+  }>
+}
+
+export interface LocationSnapshot {
+  locations: Array<{
+    id: string
+    name: string
+    coordinates: [number, number]
+    radius?: number
+    type: 'radius' | 'city' | 'region' | 'country'
+    mode: 'include' | 'exclude'
+    bbox?: [number, number, number, number]
+    geometry?: {
+      type: string
+      coordinates: number[] | number[][] | number[][][] | number[][][][]
+    }
+  }>
+}
+
+export interface GoalSnapshot {
+  type: 'leads' | 'calls' | 'website-visits'
+  formData: {
+    // Legacy support - formData now mostly handled by destination
+    id?: string
+    name?: string
+    type?: string
+    introHeadline?: string
+    introDescription?: string
+    privacyUrl?: string
+    privacyLinkText?: string
+    fields?: Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>
+    thankYouTitle?: string
+    thankYouMessage?: string
+    thankYouButtonText?: string
+    thankYouButtonUrl?: string
+    phoneNumber?: string
+    countryCode?: string
+    websiteUrl?: string
+    displayLink?: string
+  }
+}
+
+export interface DestinationSnapshot {
+  type: 'instant_form' | 'website_url' | 'phone_number'
+  data: {
+    // Instant Form (leads)
+    formId?: string
+    formName?: string
+    // Website URL (website-visits)
+    websiteUrl?: string
+    displayLink?: string
+    // Phone Number (calls)
+    phoneNumber?: string
+    phoneFormatted?: string
+  }
+}
+
+export interface MetaConnectionSnapshot {
+  selectedBusiness?: {
+    id: string
+    name: string
+  }
+  selectedPage?: {
+    id: string
+    name: string
+  }
+  selectedInstagram?: {
+    id: string
+    username: string
+  }
+  selectedAdAccount?: {
+    id: string
+    name: string
+  }
+}
+
+export interface BudgetSnapshot {
+  dailyBudget: number
+  currency: string
+  startTime?: string | null
+  endTime?: string | null
+  timezone?: string | null
+}
+
+/**
+ * Complete ad setup snapshot
+ * This is the single source of truth for all ad configuration
+ * 
+ * NOTE: destination and goal are optional to support draft autosave before wizard completion.
+ * - In DRAFT mode: These fields may be undefined as user progresses through wizard
+ * - In PUBLISH mode: These fields are required for ad to go live
+ */
+export interface AdSetupSnapshot {
+  // Creative
+  creative: AdCreativeSnapshot
+  
+  // Copy
+  copy: AdCopySnapshot
+  
+  // Destination (ad-level: form/URL/phone) - Optional for drafts
+  destination?: DestinationSnapshot
+  
+  // Targeting
+  location: LocationSnapshot
+  
+  // Goal (campaign-level: immutable) - Optional for drafts
+  goal?: GoalSnapshot
+  
+  // Meta Connection (optional - may not be needed in snapshot)
+  metaConnection?: MetaConnectionSnapshot
+  
+  // Budget
+  budget: BudgetSnapshot
+  
+  // Metadata
+  createdAt: string
+  wizardVersion?: string // For future schema migrations
+}
+
+// ============================================================================
+// Helper Types
+// ============================================================================
+
+export type PartialAdSetupSnapshot = Partial<AdSetupSnapshot>
+
+/**
+ * Validation mode for snapshot building
+ * - draft: Lenient validation, allows missing destination/goal (for autosave)
+ * - publish: Strict validation, requires all fields (for ad launch)
+ */
+export type ValidationMode = 'draft' | 'publish'
+
+/**
+ * Options for building ad snapshot
+ */
+export interface BuildSnapshotOptions {
+  mode?: ValidationMode // Default: 'publish' for backward compatibility
+}
+
+/**
+ * Validation result for ad snapshot
+ */
+export interface SnapshotValidation {
+  isValid: boolean
+  errors: string[]
+  warnings: string[]
+}
+

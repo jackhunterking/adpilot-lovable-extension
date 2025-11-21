@@ -1,0 +1,391 @@
+"use client"
+
+/**
+ * Feature: Lead Form Existing (Left Column)
+ * Purpose: Lists Facebook Instant Forms for the selected Page, allows preview and confirmation
+ * References:
+ *  - Facebook Graph API leadgen_forms: https://developers.facebook.com/docs/marketing-api/reference/page/leadgen_forms/
+ */
+
+import { useEffect, useMemo, useState } from "react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { FileText, Search, Calendar, Check, Info } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useCampaignContext } from "@/lib/context/campaign-context"
+import { metaStorage } from "@/lib/meta/storage"
+import { mapGraphAPIFormToMetaForm } from "@/lib/meta/instant-form-mapper"
+import type { GraphAPILeadgenForm } from "@/lib/types/meta-instant-form"
+
+interface LeadForm { id: string; name: string; created_time?: string }
+
+interface PreviewData {
+  id: string
+  name: string
+  privacyUrl?: string
+  privacyLinkText?: string
+  fields: Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>
+  thankYouTitle?: string
+  thankYouMessage?: string
+  thankYouButtonText?: string
+  thankYouButtonUrl?: string
+}
+
+interface LeadFormExistingProps {
+  onPreview: (data: PreviewData) => void | Promise<void>
+  onConfirm: (data: { id: string; name: string }) => void
+  onRequestCreate?: () => void
+  selectedFormId?: string | null
+  onPreviewError?: (error: string) => void
+}
+
+export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, selectedFormId: selectedFormIdProp, onPreviewError }: LeadFormExistingProps) {
+  const { campaign } = useCampaignContext()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewFormId, setPreviewFormId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [forms, setForms] = useState<LeadForm[]>([])
+  const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    const fetchForms = async () => {
+      if (!campaign?.id) {
+        console.log('[LeadFormExisting] No campaign ID')
+        return
+      }
+
+      // Get connection from database (with localStorage fallback)
+      const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+      const dbConnection = await getCampaignMetaConnection(campaign.id)
+      
+      let pageId: string | undefined
+      let pageAccessToken: string | undefined
+      
+      if (dbConnection?.page) {
+        // Database connection found
+        pageId = dbConnection.page.id
+        pageAccessToken = dbConnection.page.access_token
+      } else {
+        // Fallback to localStorage (during migration)
+        const metaStorage = require('@/lib/meta/storage').metaStorage
+        const connection = metaStorage.getConnection(campaign.id)
+        pageId = connection?.selected_page_id
+        pageAccessToken = connection?.selected_page_access_token
+      }
+
+      console.log('[LeadFormExisting] Fetching forms:', {
+        campaignId: campaign.id,
+        hasConnection: !!(dbConnection || pageId),
+        pageId,
+        hasPageAccessToken: !!pageAccessToken,
+        pageAccessTokenLength: pageAccessToken?.length,
+        source: dbConnection ? 'database' : 'localStorage',
+      })
+
+      setIsLoading(true)
+      setError(null)
+      try {
+        const url = new URL('/api/v1/meta/forms', window.location.origin)
+        url.searchParams.set('campaignId', campaign.id)
+        if (pageId) {
+          url.searchParams.set('pageId', pageId)
+        }
+        if (pageAccessToken) {
+          url.searchParams.set('pageAccessToken', pageAccessToken)
+        }
+
+        console.log('[LeadFormExisting] Request URL (token redacted):', {
+          url: url.toString().replace(/pageAccessToken=[^&]+/, 'pageAccessToken=[REDACTED]'),
+          hasPageId: url.searchParams.has('pageId'),
+          hasPageAccessToken: url.searchParams.has('pageAccessToken'),
+          source: dbConnection ? 'database' : 'localStorage',
+        })
+
+        const res = await fetch(url.toString())
+        const json: unknown = await res.json()
+
+        console.log('[LeadFormExisting] API response:', {
+          status: res.status,
+          ok: res.ok,
+          response: json,
+        })
+
+        if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load forms')
+        const data = (json as { forms?: LeadForm[] }).forms
+        setForms(Array.isArray(data) ? data : [])
+        console.log('[LeadFormExisting] Forms loaded:', { count: Array.isArray(data) ? data.length : 0 })
+      } catch (e) {
+        console.error('[LeadFormExisting] Fetch error:', e)
+        setError(e instanceof Error ? e.message : 'Failed to load forms')
+        setForms([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchForms()
+  }, [campaign?.id])
+
+  // Keep internal selection in sync with parent-provided selection
+  useEffect(() => {
+    if (typeof selectedFormIdProp !== 'undefined') {
+      setSelectedFormId(selectedFormIdProp)
+    }
+  }, [selectedFormIdProp])
+
+  // Auto-load preview on mount if selectedFormIdProp is provided and forms are loaded
+  useEffect(() => {
+    if (selectedFormIdProp && forms.length > 0 && !previewFormId) {
+      const formExists = forms.some(f => f.id === selectedFormIdProp)
+      if (formExists) {
+        console.log('[LeadFormExisting] Auto-loading preview for saved selection:', selectedFormIdProp)
+        requestPreview(selectedFormIdProp)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFormIdProp, forms.length, previewFormId])
+
+  const filteredForms = useMemo(() => forms.filter((f) => (f.name || '').toLowerCase().includes(searchQuery.toLowerCase())), [forms, searchQuery])
+
+  const requestPreview = async (id: string) => {
+    if (!campaign?.id) {
+      console.log('[LeadFormExisting] No campaign ID for preview')
+      return
+    }
+
+    // Set loading state
+    setIsLoadingPreview(true)
+    setPreviewFormId(id)
+
+    // Get connection from database (with localStorage fallback)
+    const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+    const dbConnection = await getCampaignMetaConnection(campaign.id)
+    
+    let pageId: string | undefined
+    let pageAccessToken: string | undefined
+    let pageName: string | undefined
+    
+    if (dbConnection?.page) {
+      pageId = dbConnection.page.id
+      pageAccessToken = dbConnection.page.access_token
+      pageName = dbConnection.page.name || undefined
+    } else {
+      // Fallback to localStorage
+      const metaStorage = require('@/lib/meta/storage').metaStorage
+      const connection = metaStorage.getConnection(campaign.id)
+      pageId = connection?.selected_page_id
+      pageAccessToken = connection?.selected_page_access_token
+      pageName = connection?.selected_page_name
+    }
+
+    console.log('[LeadFormExisting] Requesting preview:', {
+      formId: id,
+      campaignId: campaign.id,
+      hasConnection: !!(dbConnection || pageId),
+      pageId,
+      hasPageAccessToken: !!pageAccessToken,
+      source: dbConnection ? 'database' : 'localStorage',
+    })
+
+    try {
+      // Fetch form details
+      const url = new URL(`/api/v1/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
+      url.searchParams.set('campaignId', campaign.id)
+      if (pageId) {
+        url.searchParams.set('pageId', pageId)
+      }
+      if (pageAccessToken) {
+        url.searchParams.set('pageAccessToken', pageAccessToken)
+      }
+
+      console.log('[LeadFormExisting] Preview request URL (token redacted):', {
+        url: url.toString().replace(/pageAccessToken=[^&]+/, 'pageAccessToken=[REDACTED]'),
+        hasPageId: url.searchParams.has('pageId'),
+        hasPageAccessToken: url.searchParams.has('pageAccessToken'),
+      })
+
+      const res = await fetch(url.toString())
+      const json: unknown = await res.json()
+
+      console.log('[LeadFormExisting] Preview response:', {
+        status: res.status,
+        ok: res.ok,
+        response: json,
+      })
+
+      if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load form detail')
+      
+      // Fetch page profile picture if we have page data
+      let profilePicture: string | undefined = pageProfilePicture
+      if (pageId && !profilePicture) {
+        try {
+          const pictureUrl = new URL('/api/v1/meta/page-picture', window.location.origin)
+          pictureUrl.searchParams.set('campaignId', campaign.id)
+          pictureUrl.searchParams.set('pageId', pageId)
+          if (pageAccessToken) {
+            pictureUrl.searchParams.set('pageAccessToken', pageAccessToken)
+          }
+
+          const pictureRes = await fetch(pictureUrl.toString())
+          const pictureJson: unknown = await pictureRes.json()
+          if (
+            pictureRes.ok &&
+            pictureJson &&
+            typeof pictureJson === 'object' &&
+            'pictureUrl' in pictureJson &&
+            typeof pictureJson.pictureUrl === 'string'
+          ) {
+            profilePicture = pictureJson.pictureUrl
+            setPageProfilePicture(profilePicture)
+          }
+        } catch (e) {
+          console.warn('[LeadFormExisting] Failed to fetch page picture:', e)
+        }
+      }
+
+      // Use mapper to convert Graph API response to our format
+      const metaForm = mapGraphAPIFormToMetaForm(json as GraphAPILeadgenForm, {
+        pageId: pageId,
+        pageName: pageName,
+        pageProfilePicture: profilePicture,
+      })
+
+      // Convert to legacy PreviewData format for parent callback
+      const fields: PreviewData['fields'] = metaForm.fields.map((f) => ({
+        id: f.id,
+        type: f.type === 'FULL_NAME' ? 'full_name' : f.type === 'EMAIL' ? 'email' : 'phone',
+        label: f.label,
+        required: f.required || false,
+      }))
+
+      console.log('[LeadFormExisting] Calling onPreview with:', {
+        id: metaForm.id || '',
+        name: metaForm.name,
+        fieldsCount: fields.length,
+        hasThankYou: !!metaForm.thankYou,
+      })
+
+      await onPreview({
+        id: metaForm.id || '',
+        name: metaForm.name,
+        privacyUrl: metaForm.privacy.url,
+        privacyLinkText: metaForm.privacy.linkText,
+        fields,
+        thankYouTitle: metaForm.thankYou?.title,
+        thankYouMessage: metaForm.thankYou?.body,
+        thankYouButtonText: metaForm.thankYou?.ctaText,
+        thankYouButtonUrl: metaForm.thankYou?.ctaUrl,
+      })
+      // Clear error on success
+      setError(null)
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Failed to load form preview'
+      console.error('[LeadFormExisting] Failed to load preview:', e)
+      setError(errorMessage)
+      // Notify parent component of error
+      onPreviewError?.(errorMessage)
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const showEmpty = !isLoading && filteredForms.length === 0
+
+  return (
+    <div className="space-y-4">
+      {/* Explanatory header above list/search */}
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <p className="text-sm text-blue-900">
+          Select one of your existing forms below to collect lead information.
+        </p>
+      </Card>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1877F2]" />
+        <Input placeholder="Search forms..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>
+      )}
+
+      <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-4">
+              <Skeleton className="h-4 w-3/4 mb-2" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ))
+        ) : showEmpty ? (
+          <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center space-y-3">
+            <FileText className="h-8 w-8 text-[#1877F2] mx-auto mb-2" />
+            <p className="text-sm font-medium text-foreground mb-1">No forms yet</p>
+            <p className="text-xs text-muted-foreground mb-4">{searchQuery ? "No results match your search." : "Create your first instant form to capture leads."}</p>
+            {!searchQuery && (
+              <Button onClick={onRequestCreate} className="h-9 bg-[#1877F2] hover:bg-[#166FE5] text-white">
+                Create New
+              </Button>
+            )}
+          </div>
+        ) : (
+          filteredForms.map((form) => {
+            const isSelected = selectedFormId === form.id
+            const isLoadingThisPreview = isLoadingPreview && previewFormId === form.id
+
+            return (
+              <button
+                key={form.id}
+                onClick={() => {
+                  setSelectedFormId(form.id)
+                  requestPreview(form.id)
+                }}
+                disabled={isLoadingPreview}
+                className={`w-full rounded-lg border p-4 text-left transition-all hover:bg-muted/50 ${isSelected ? "border-[#1877F2] bg-[#1877F2]/5" : "border-border bg-card"} ${isLoadingPreview ? "opacity-60 cursor-wait" : ""}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-[#1877F2]/10 flex items-center justify-center flex-shrink-0">
+                    {isLoadingThisPreview ? (
+                      <div className="h-5 w-5 border-2 border-[#1877F2] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-[#1877F2]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="text-sm font-medium text-foreground">{form.name}</h3>
+                      {isSelected && !isLoadingThisPreview && <Check className="h-4 w-4 text-[#1877F2] flex-shrink-0" />}
+                      {isLoadingThisPreview && (
+                        <div className="h-4 w-4 border-2 border-[#1877F2] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      )}
+                    </div>
+                    {form.created_time && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(form.created_time).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            )
+          })
+        )}
+      </div>
+
+      <Button
+        onClick={() => {
+          const form = forms.find((f) => f.id === selectedFormId)
+        	if (form) onConfirm({ id: form.id, name: form.name })
+        }}
+        disabled={!selectedFormId}
+        className="w-full h-12 text-base font-medium"
+      >
+        Use Selected Form
+      </Button>
+    </div>
+  )
+}

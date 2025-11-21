@@ -192,8 +192,12 @@ function showAdPilotPanel() {
     
     const iframe = document.createElement('iframe');
     iframe.id = 'adpilot-iframe';
-    iframe.src = chrome.runtime.getURL('ui/panel.html'); // USE LOCAL FILE
+    // EXPERIMENTAL: Load full Next.js app
+    // Development: http://localhost:3000
+    // Production: Deploy to lovable.adpilot.com
+    iframe.src = 'http://localhost:3000';
     iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+    iframe.allow = 'clipboard-write';  // Allow clipboard access for copy operations
     
     iframe.addEventListener('load', () => {
       sendProjectContext(iframe);
