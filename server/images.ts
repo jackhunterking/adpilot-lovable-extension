@@ -115,6 +115,149 @@ async function validateImageForOverlays(imageBuffer: Buffer, mediaType: string):
     }
 }
 
+/**
+ * Generate dual format images (square + vertical) for Lovable extension
+ * @param prompt - The image generation prompt
+ * @param campaignId - Optional campaign ID for storage organization
+ * @param goalType - Optional goal type for context-specific generation
+ * @returns Object with square and vertical image URLs
+ */
+export async function generateDualFormatImage(
+    prompt: string,
+    campaignId?: string,
+    goalType?: string
+): Promise<{ square: string; vertical: string }> {
+    try {
+        console.log('🎨 Generating dual format images (square + vertical)...');
+        
+        // Enhance prompts with Meta guardrails
+        const squarePrompt = enhancePromptWithMetaGuardrails(
+            `${prompt}\n\nFormat: Square composition (1:1 aspect ratio, 1080x1080). Centered subject, balanced framing.`,
+            'square_format',
+            goalType
+        );
+        
+        const verticalPrompt = enhancePromptWithMetaGuardrails(
+            `${prompt}\n\nFormat: Vertical portrait composition (9:16 aspect ratio, 1080x1920). Vertical framing, portrait orientation.`,
+            'vertical_format',
+            goalType
+        );
+        
+        // Generate both formats in parallel for speed
+        const [squareResult, verticalResult] = await Promise.all([
+            generateText({
+                model: 'google/gemini-2.5-flash-image-preview',
+                prompt: squarePrompt,
+                providerOptions: {
+                    google: { 
+                        responseModalities: ['TEXT', 'IMAGE'] 
+                    },
+                },
+            }),
+            generateText({
+                model: 'google/gemini-2.5-flash-image-preview',
+                prompt: verticalPrompt,
+                providerOptions: {
+                    google: { 
+                        responseModalities: ['TEXT', 'IMAGE'] 
+                    },
+                },
+            })
+        ]);
+        
+        const timestamp = Date.now();
+        let squareUrl = '';
+        let verticalUrl = '';
+        
+        // Process square format image
+        for (const file of squareResult.files) {
+            if (file.mediaType.startsWith('image/')) {
+                const fileName = `generated-square-${timestamp}.png`;
+                let imageBuffer = Buffer.from(file.uint8Array);
+                
+                // Validate no overlays
+                const isClean = await validateImageForOverlays(imageBuffer, file.mediaType);
+                if (!isClean) {
+                    console.warn('⚠️  Overlay detected in square image, regenerating...');
+                    const stronger = `${squarePrompt}\n\nABSOLUTE BAN: No frames, borders, guides, crop marks, text, or numbers.`;
+                    const retry = await generateText({
+                        model: 'google/gemini-2.5-flash-image-preview',
+                        prompt: stronger,
+                        providerOptions: { google: { responseModalities: ['TEXT', 'IMAGE'] } },
+                    });
+                    for (const f2 of retry.files) {
+                        if (f2.mediaType.startsWith('image/')) {
+                            imageBuffer = Buffer.from(f2.uint8Array);
+                            break;
+                        }
+                    }
+                }
+                
+                squareUrl = await uploadToSupabase(
+                    imageBuffer,
+                    fileName,
+                    campaignId,
+                    {
+                        variationType: 'square_format',
+                        category: 'Dual Format - Square'
+                    }
+                );
+                console.log('✅ Square format (1080x1080) generated');
+                break;
+            }
+        }
+        
+        // Process vertical format image
+        for (const file of verticalResult.files) {
+            if (file.mediaType.startsWith('image/')) {
+                const fileName = `generated-vertical-${timestamp}.png`;
+                let imageBuffer = Buffer.from(file.uint8Array);
+                
+                // Validate no overlays
+                const isClean = await validateImageForOverlays(imageBuffer, file.mediaType);
+                if (!isClean) {
+                    console.warn('⚠️  Overlay detected in vertical image, regenerating...');
+                    const stronger = `${verticalPrompt}\n\nABSOLUTE BAN: No frames, borders, guides, crop marks, text, or numbers.`;
+                    const retry = await generateText({
+                        model: 'google/gemini-2.5-flash-image-preview',
+                        prompt: stronger,
+                        providerOptions: { google: { responseModalities: ['TEXT', 'IMAGE'] } },
+                    });
+                    for (const f2 of retry.files) {
+                        if (f2.mediaType.startsWith('image/')) {
+                            imageBuffer = Buffer.from(f2.uint8Array);
+                            break;
+                        }
+                    }
+                }
+                
+                verticalUrl = await uploadToSupabase(
+                    imageBuffer,
+                    fileName,
+                    campaignId,
+                    {
+                        variationType: 'vertical_format',
+                        category: 'Dual Format - Vertical'
+                    }
+                );
+                console.log('✅ Vertical format (1080x1920) generated');
+                break;
+            }
+        }
+        
+        if (!squareUrl || !verticalUrl) {
+            throw new Error('Failed to generate both image formats');
+        }
+        
+        console.log('✅ Dual format generation complete');
+        return { square: squareUrl, vertical: verticalUrl };
+        
+    } catch (error) {
+        console.error('Error generating dual format images:', error);
+        throw error;
+    }
+}
+
 export async function generateImage(
     prompt: string, 
     campaignId?: string,

@@ -12,6 +12,7 @@ import { AuthProvider } from "@/components/auth/auth-provider";
 import { CampaignProvider } from "@/lib/context/campaign-context";
 import { ServiceProvider } from "@/lib/services/service-provider";
 import { SonnerToaster } from "@/components/sonner-toaster";
+import { FullscreenModeProvider } from "@/lib/context/fullscreen-mode-context";
 import Script from "next/script";
 import { COMPANY_NAME } from "@/lib/constants";
 
@@ -26,8 +27,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${COMPANY_NAME} - Create Meta Ads with AI`,
-  description: "Create Facebook and Instagram ads with AI-generated content",
+  title: `${COMPANY_NAME} for Lovable - Create Meta Ads with AI`,
+  description: "Create and manage Facebook and Instagram ads directly from Lovable with AI-powered features",
   icons: "/AdPilot-NewLogo.svg",
 };
 
@@ -84,10 +85,12 @@ export default function RootLayout({
         >
           <ServiceProvider>
             <AuthProvider>
-              <CampaignProvider>
-                {children}
-                <SonnerToaster />
-              </CampaignProvider>
+              <FullscreenModeProvider>
+                <CampaignProvider>
+                  {children}
+                  <SonnerToaster />
+                </CampaignProvider>
+              </FullscreenModeProvider>
             </AuthProvider>
           </ServiceProvider>
         </ThemeProvider>

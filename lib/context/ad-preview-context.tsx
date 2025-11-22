@@ -10,6 +10,9 @@ interface AdContent {
   imageUrl?: string // Legacy single image support
   imageVariations?: string[] // Array of 3 variation URLs
   baseImageUrl?: string // Original base image
+  // Dual format support for Lovable extension
+  imageUrlSquare?: string // Square format (1080x1080)
+  imageUrlVertical?: string // Vertical format (1080x1920)
   headline: string
   body: string
   cta: string
@@ -32,6 +35,9 @@ interface AdPreviewContextType {
   loadingVariations: boolean[]
   generateImageVariations: (baseImageUrl: string, campaignId?: string) => Promise<void>
   resetAdPreview: () => void
+  // Dual format support for Lovable extension
+  selectedFormat: 'square' | 'vertical'
+  setSelectedFormat: (format: 'square' | 'vertical') => void
 }
 
 const AdPreviewContext = createContext<AdPreviewContextType | undefined>(undefined)
@@ -48,6 +54,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const [loadingVariations] = useState<boolean[]>([false, false, false])
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
   const [contextAdId, setContextAdId] = useState<string | null>(null)  // Track which ad this context serves
+  const [selectedFormat, setSelectedFormat] = useState<'square' | 'vertical'>('square')  // Default to square format
   
   // Track previous save config mode to only log transitions
   const prevSaveConfigModeRef = useRef<'CRITICAL' | 'NORMAL' | null>(null)
@@ -105,15 +112,22 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
           // Get copy data for initial display (headline, body, CTA)
           const firstCopy = snapshot.copy?.variations?.[0]
           
-          // Hydrate adContent with all 3 variations
+          // Hydrate adContent with all 3 variations + dual format support
           setAdContent({
             imageVariations: snapshot.creative.imageVariations, // ["url1", "url2", "url3"]
             baseImageUrl: snapshot.creative.baseImageUrl,
             imageUrl: snapshot.creative.imageUrl, // Legacy support
+            imageUrlSquare: snapshot.creative.imageUrlSquare, // Lovable: Square format
+            imageUrlVertical: snapshot.creative.imageUrlVertical, // Lovable: Vertical format
             headline: firstCopy?.headline || '',
             body: firstCopy?.primaryText || '',
             cta: firstCopy?.cta || 'Learn More',
           })
+          
+          // Hydrate selected format for Lovable extension
+          if (snapshot.creative.selectedFormat) {
+            setSelectedFormat(snapshot.creative.selectedFormat as 'square' | 'vertical')
+          }
           
           // Hydrate selectedImageIndex (which variation user selected)
           const selectedIdx = snapshot.creative.selectedImageIndex
@@ -178,6 +192,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     setIsPublished(false);
     setSelectedCreativeVariation(null);
     setSelectedImageIndex(null);
+    setSelectedFormat('square'); // Reset to default format
     prevSaveConfigModeRef.current = null; // Reset mode tracking
   }, []);
 
@@ -193,7 +208,9 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
       setSelectedImageIndex,
       loadingVariations,
       generateImageVariations,
-      resetAdPreview
+      resetAdPreview,
+      selectedFormat,
+      setSelectedFormat
     }}>
       {children}
     </AdPreviewContext.Provider>

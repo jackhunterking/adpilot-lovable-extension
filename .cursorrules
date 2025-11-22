@@ -1,0 +1,367 @@
+# Cursor Rules - AdPilot Lovable Extension
+
+## Project Overview
+Chrome extension that integrates AdPilot into Lovable editor, enabling Meta ad creation with AI-powered features and Supabase backend.
+
+## 🎯 Development Guidelines for No-Code Developers
+
+### Backend/Storage Operations - IMPORTANT!
+**⚠️ ALWAYS notify the user when:**
+- Using Supabase MCP tools for database operations
+- Creating or modifying storage buckets
+- Implementing authentication logic
+- Writing migrations or schema changes
+- Any backend logic that requires testing and verification
+
+**Use Supabase MCP tools in Cursor for:**
+- Database queries and mutations
+- Migration creation and application
+- Storage bucket operations
+- Security policy (RLS) management
+
+## 📦 Chrome Extension Development
+
+### Manifest V3 Essentials
+```json
+{
+  "manifest_version": 3,
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://lovable.dev/*",
+    "https://*.lovable.dev/*",
+    "https://*.supabase.co/*"
+  ],
+  "content_scripts": [{
+    "matches": ["https://lovable.dev/projects/*"],
+    "js": ["content/inject.js"],
+    "run_at": "document_end"
+  }],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "web_accessible_resources": [{
+    "resources": ["ui/panel.html", "assets/*"],
+    "matches": ["https://lovable.dev/*"]
+  }]
+}
+```
+
+### Key Patterns from This Project
+
+#### 1. Evidence-Based DOM Injection
+```javascript
+// Find navigation by locating a known element (Cloud button)
+const allButtons = Array.from(document.querySelectorAll('button'));
+const cloudButton = allButtons.find(b => b.textContent.trim() === 'Cloud');
+const ul = cloudButton.closest('ul'); // Navigate to parent container
+```
+
+#### 2. URL-Based Routing (Match Lovable Pattern)
+```javascript
+// Lovable uses ?view=cloud, ?view=database
+// We use ?view=grow
+const url = new URL(window.location.href);
+url.searchParams.set('view', 'grow');
+window.history.pushState({ view: 'grow' }, '', url);
+```
+
+#### 3. Iframe Communication Security
+```javascript
+// ALWAYS validate origin
+window.addEventListener('message', (event) => {
+  if (!event.origin.includes('adpilot.com')) {
+    return; // Reject unknown origins
+  }
+  // Process message
+});
+```
+
+#### 4. SPA Navigation Detection
+```javascript
+// Watch for URL changes in React SPA
+let lastUrl = location.href;
+new MutationObserver(() => {
+  if (location.href !== lastUrl) {
+    lastUrl = location.href;
+    // Re-inject or update UI
+  }
+}).observe(document, { subtree: true, childList: true });
+```
+
+### Security Principles
+- **Minimal Permissions**: Only request `storage` and `tabs`
+- **No Dangerous APIs**: Avoid `<all_urls>`, `webRequest`, `cookies`
+- **Origin Validation**: Always validate postMessage origins
+- **No Sensitive Data**: Never store API keys or auth tokens in extension
+
+## 🤖 Lovable AI Integration
+
+### Default Model
+- **Gemini 2.5 Flash**: Default balanced model for most tasks
+- Usage-based pricing: $1 free per month, then pay-as-you-go
+
+### Model Selection Guide
+
+| Use Case | Recommended Model | Why |
+|----------|------------------|-----|
+| Image Generation | Gemini 2.5 Flash Image | Optimized for images, very cheap |
+| Ad Copy Generation | Gemini 2.5 Flash | Balanced speed/quality |
+| Complex Ad Strategy | GPT-5 Mini | Better reasoning |
+| High-Volume Tasks | Gemini 2.5 Flash Lite | Cheapest, fastest |
+| Critical Quality | GPT-5 | Best reasoning (expensive) |
+
+### AI Features to Leverage
+- **Image Generation**: Create ad visuals
+- **Copy Generation**: Write compelling ad text
+- **Chatbots**: Interactive ad assistance
+- **Sentiment Analysis**: Analyze ad performance feedback
+- **Creative Variations**: Generate A/B test variations
+
+### Implementation Pattern
+```typescript
+// Prompt Lovable to use specific model
+"Generate an ad image using Gemini 2.5 Flash Image"
+"Create ad copy with Gemini 2.5 Flash"
+"Analyze this ad performance data with GPT-5 Mini"
+```
+
+## 🗄️ Supabase Backend
+
+### Environment Variables (Required)
+```typescript
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ... // Server-side only!
+```
+
+### Database Operations via MCP
+**⚠️ USE SUPABASE MCP TOOLS IN CURSOR:**
+```bash
+# List tables
+mcp_supabase_list_tables
+
+# Execute SQL
+mcp_supabase_execute_sql
+
+# Apply migration
+mcp_supabase_apply_migration
+
+# Check advisors (security & performance)
+mcp_supabase_get_advisors
+```
+
+### Common Patterns
+
+#### Authentication
+```typescript
+// Client-side auth
+const { data, error } = await supabase.auth.signInWithOAuth({
+  provider: 'google'
+});
+```
+
+#### Database Queries
+```typescript
+// ⚠️ BACKEND OPERATION - Notify user!
+const { data, error } = await supabase
+  .from('campaigns')
+  .select('*')
+  .eq('user_id', userId);
+```
+
+#### Storage (Image Management)
+```typescript
+// ⚠️ STORAGE OPERATION - Notify user!
+const { data, error } = await supabase.storage
+  .from('generated-images')
+  .upload(path, file);
+```
+
+### RLS (Row Level Security) - CRITICAL
+**⚠️ Always verify RLS policies are in place!**
+```sql
+-- Example: User can only see their own campaigns
+CREATE POLICY "Users can view own campaigns"
+ON campaigns FOR SELECT
+USING (auth.uid() = user_id);
+```
+
+## 📁 Project Structure
+
+```
+adpilot-lovable-extension/
+├── manifest.json           # Extension config
+├── background/             
+│   └── service-worker.js   # Lifecycle management
+├── content/               
+│   ├── inject.js          # DOM injection & messaging
+│   └── styles.css         # Extension styles
+├── app/                   # Next.js app (iframe content)
+│   ├── api/v1/           # API routes
+│   └── components/        # React components
+├── lib/
+│   ├── supabase/         # Supabase client
+│   ├── meta/             # Meta API integration
+│   └── ai/               # AI service wrappers
+└── types/                # TypeScript definitions
+```
+
+## 🔧 Development Workflow
+
+### 1. Chrome Extension Changes
+```bash
+# Make changes to manifest.json, content/, or background/
+# Reload extension in chrome://extensions/
+```
+
+### 2. Next.js App Changes
+```bash
+# Run dev server
+npm run dev
+
+# Extension iframe loads from http://localhost:3000
+```
+
+### 3. Database Changes
+```bash
+# ⚠️ BACKEND OPERATION - Use MCP tools!
+# Apply migration via Cursor
+mcp_supabase_apply_migration --name "add_campaigns_table"
+```
+
+## 🚨 Common Pitfalls & Solutions
+
+### Chrome Extension Issues
+
+**Issue**: Content script doesn't inject
+- **Solution**: Check `matches` in manifest.json
+- **Solution**: Verify `run_at: "document_end"` timing
+- **Solution**: Use MutationObserver to wait for DOM
+
+**Issue**: postMessage not received
+- **Solution**: Validate origin on both sides
+- **Solution**: Use `*` as targetOrigin only for same-extension iframes
+- **Solution**: Check iframe is fully loaded before sending
+
+**Issue**: Extension can't access iframe resources
+- **Solution**: Add resources to `web_accessible_resources`
+- **Solution**: Match correct host in `matches` array
+
+### Lovable Integration Issues
+
+**Issue**: Can't extract project context
+- **Solution**: Use regex on `window.location.pathname`
+- **Pattern**: `/projects/([^\/\?]+)`
+
+**Issue**: Button disappears on navigation
+- **Solution**: Use MutationObserver for SPA detection
+- **Solution**: Re-inject button when URL changes
+
+**Issue**: AI costs too high
+- **Solution**: Use cheaper models (Flash Lite, GPT-5 Nano)
+- **Solution**: Batch operations when possible
+- **Solution**: Cache AI-generated content
+
+### Supabase Issues
+
+**Issue**: Auth not persisting
+- **Solution**: Check cookie settings in middleware
+- **Solution**: Use server-side auth for API routes
+
+**Issue**: RLS blocking queries
+- **Solution**: Verify user is authenticated
+- **Solution**: Check policy allows the operation
+- **⚠️ USE MCP**: `mcp_supabase_get_advisors` for security issues
+
+**Issue**: Storage upload fails
+- **Solution**: Check bucket permissions
+- **Solution**: Verify file size limits
+- **Solution**: Use correct content-type
+
+## 📚 Reference Documentation
+
+### Chrome Extension APIs
+- Manifest V3: `docs/cursor-rules/chrome-extension-manifest-v3.md`
+- Content Scripts: `docs/cursor-rules/chrome-extension-content-scripts.md`
+- Background Workers: `docs/cursor-rules/chrome-extension-background-workers.md`
+- Messaging: `docs/cursor-rules/chrome-extension-messaging.md`
+- Storage: `docs/cursor-rules/chrome-extension-storage.md`
+
+### Lovable Integration
+- AI Features: `docs/cursor-rules/lovable-ai-features.md`
+- Supabase Backend: `docs/cursor-rules/lovable-supabase-backend.md`
+- API Integration: `docs/cursor-rules/lovable-api-integration.md`
+
+### Project Patterns
+- Architecture: `docs/cursor-rules/adpilot-architecture-patterns.md`
+- Main docs: `docs/ARCHITECTURE.md`
+
+## 🎨 Code Style & Conventions
+
+### TypeScript
+- Use strict mode
+- Define types for all API responses
+- Use Zod for runtime validation (see `lib/env.ts`)
+
+### React Components
+- Use functional components with hooks
+- Keep components small and focused
+- Co-locate types with components
+
+### API Routes
+- Validate input with Zod schemas
+- Use try-catch for error handling
+- Return consistent error shapes
+
+### Comments
+- Explain WHY, not WHAT
+- Reference external docs with links
+- Mark evidence-based discoveries with dates
+
+## 🧪 Testing Checklist
+
+### Chrome Extension Testing
+- [ ] Extension loads without errors
+- [ ] Button appears on Lovable editor
+- [ ] Button click opens iframe panel
+- [ ] Project context extracted correctly
+- [ ] Messages sent/received successfully
+- [ ] Works after page navigation (SPA)
+- [ ] No console errors
+
+### Backend Testing (⚠️ Notify User!)
+- [ ] Authentication works
+- [ ] Database queries return correct data
+- [ ] RLS policies enforce security
+- [ ] Storage uploads succeed
+- [ ] API routes handle errors gracefully
+
+### AI Feature Testing
+- [ ] AI generation completes successfully
+- [ ] Correct model used
+- [ ] Results are high quality
+- [ ] Costs are within budget
+- [ ] Rate limits not exceeded
+
+## 🚀 Deployment
+
+### Chrome Extension
+```bash
+npm run package  # Creates zip for Chrome Web Store
+npm run validate # Validates manifest.json
+```
+
+### Next.js App (Lovable Production)
+- Deploy via Lovable Cloud
+- Set environment variables in Lovable dashboard
+- Update iframe URL in `content/inject.js`
+
+### Supabase
+- ⚠️ Run migrations via MCP tools
+- Verify RLS policies in production
+- Test with production data (carefully!)
+
+---
+
+**Remember**: This is a no-code friendly project. Always explain backend operations clearly and verify with user before executing database/storage changes!
+

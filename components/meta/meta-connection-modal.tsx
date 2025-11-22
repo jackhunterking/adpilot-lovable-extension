@@ -23,31 +23,36 @@ interface MetaConnectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  campaignId?: string // Optional override for when CampaignContext is not available
 }
 
 type ConnectionStep = 'loading' | 'disconnected' | 'selecting' | 'verifying' | 'connected' | 'error'
 
-export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConnectionModalProps) {
-  const { campaign } = useCampaignContext()
+export function MetaConnectionModal({ open, onOpenChange, onSuccess, campaignId: propCampaignId }: MetaConnectionModalProps) {
+  const campaignContext = useCampaignContext()
+  const campaign = campaignContext?.campaign
   const metaActions = useMetaActions()
   const [step, setStep] = useState<ConnectionStep>('loading')
   const [summary, setSummary] = useState<MetaConnectionSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
 
+  // Use prop campaignId if provided, otherwise fall back to context
+  const effectiveCampaignId = propCampaignId || campaign?.id
+
   // Copy pattern from MetaConnectCard: Read from localStorage directly
   const loadConnectionStatus = useCallback(() => {
-    if (!campaign?.id) return
+    if (!effectiveCampaignId) return
     
     setStep('loading')
     
     try {
       console.log('[MetaConnectionModal] Loading connection status from localStorage', {
-        campaignId: campaign.id,
+        campaignId: effectiveCampaignId,
       })
       
       // PATTERN FROM MetaConnectCard.hydrate(): Read from localStorage
-      const connectionData = metaStorage.getConnection(campaign.id)
+      const connectionData = metaStorage.getConnection(effectiveCampaignId)
       
       if (!connectionData) {
         console.log('[MetaConnectionModal] No connection data found')
@@ -57,7 +62,7 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
       }
       
       // Get summary using same method as stepper
-      const summary = metaStorage.getConnectionSummary(campaign.id)
+      const summary = metaStorage.getConnectionSummary(effectiveCampaignId)
       
       console.log('[MetaConnectionModal] Connection summary loaded', {
         hasBusinessId: !!summary?.business?.id,
@@ -102,24 +107,24 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
       setStep('error')
       setError('Failed to load connection status')
     }
-  }, [campaign?.id])
+  }, [effectiveCampaignId])
 
   useEffect(() => {
-    if (open && campaign?.id) {
+    if (open && effectiveCampaignId) {
       loadConnectionStatus()
     }
-  }, [open, campaign?.id, loadConnectionStatus])
+  }, [open, effectiveCampaignId, loadConnectionStatus])
 
   // Listen for Meta connection events to reload status in real-time
   useEffect(() => {
-    if (!open || !campaign?.id) return
+    if (!open || !effectiveCampaignId) return
     
     const handleConnectionChange = (event: Event) => {
       try {
         const customEvent = event as CustomEvent<{ campaignId: string }>
         
         // Only respond to events for THIS campaign
-        if (customEvent.detail.campaignId !== campaign.id) {
+        if (customEvent.detail.campaignId !== effectiveCampaignId) {
           return
         }
         
@@ -143,10 +148,10 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
       window.removeEventListener(META_EVENTS.DISCONNECTION, handleConnectionChange)
       console.log('[MetaConnectionModal] Event listeners cleaned up')
     }
-  }, [open, campaign?.id, loadConnectionStatus])
+  }, [open, effectiveCampaignId, loadConnectionStatus])
 
   const handleConnect = () => {
-    if (!campaign?.id || isConnecting) return
+    if (!effectiveCampaignId || isConnecting) return
     setIsConnecting(true)
     setStep('selecting')
     metaActions.connect()

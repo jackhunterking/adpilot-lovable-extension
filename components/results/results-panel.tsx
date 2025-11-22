@@ -17,6 +17,7 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { KPIMetricsTable } from "@/components/results/kpi-metrics-table"
 import { LeadsTable } from "@/components/results/leads-table"
 import { UnpublishedWarningBanner } from "@/components/results/unpublished-warning-banner"
+import { ConversionsTable } from "@/components/dashboard/conversions-table"
 import { type CampaignMetricsSnapshot, type MetricsRangeKey } from "@/lib/meta/insights"
 import type { KPIMetricsRow } from "@/lib/types/workspace"
 
@@ -177,6 +178,18 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
         {isLeadGoal && (
           <LeadsTable campaignId={campaignId} onRefresh={refreshMetrics} />
         )}
+
+        {/* Conversions Table */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Conversions</h3>
+          </div>
+          <ConversionsTable 
+            lovableProjectId={campaign?.lovable_project_id || "demo-project"} 
+            campaignId={campaignId}
+            compact={true}
+          />
+        </div>
       </div>
     </div>
   )

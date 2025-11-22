@@ -44,3 +44,18 @@ export type {
   PongMessage,
 } from './bridge-messages';
 
+// Chrome extension message types
+export {
+  isAdPilotMessage,
+  isAITriggerMessage,
+  isRequestContextMessage as isRequestContextMessageExt,
+} from './chrome-extension-messages';
+
+export type {
+  AdPilotMessage,
+  AITriggerPayload,
+  AITriggerMessage,
+  ProjectContextPayload,
+  AdPilotMessageType,
+} from './chrome-extension-messages';
+

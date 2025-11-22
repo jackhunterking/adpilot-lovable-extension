@@ -41,6 +41,10 @@ export interface SetupSnapshot {
       gradient: string
       title: string
     } | null
+    // Dual format support for Lovable extension
+    imageUrlSquare?: string
+    imageUrlVertical?: string
+    selectedFormat?: 'square' | 'vertical'
   }
   copy?: {
     headline?: string

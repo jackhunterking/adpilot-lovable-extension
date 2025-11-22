@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 import type { AdStatus } from "@/lib/types/workspace"
 
 interface AdMockupProps {
-  format?: 'feed' | 'story' | 'reel'
+  format?: 'feed' | 'story' | 'reel' | 'square' | 'vertical'
   imageUrl?: string
   logoUrl?: string
   brandName?: string
@@ -51,8 +51,11 @@ export function AdMockup({
   const safeHeadline = headline || 'Get Started Today'
   const safeDescription = description || 'Learn more about what we offer'
   
+  // Map 'square' to 'feed' and 'vertical' to 'story' for Lovable extension compatibility
+  const normalizedFormat = format === 'square' ? 'feed' : format === 'vertical' ? 'story' : format
+  
   // Reel format - Coming Soon
-  if (format === 'reel') {
+  if (normalizedFormat === 'reel') {
     return (
       <div className="aspect-[9/16] rounded-lg border-2 border-border bg-card overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center">
@@ -66,7 +69,7 @@ export function AdMockup({
     )
   }
   
-  if (format === 'story') {
+  if (normalizedFormat === 'story') {
     return (
       <div 
         className="aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative shadow-lg border-[#CED0D4]"

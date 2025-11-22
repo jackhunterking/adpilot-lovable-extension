@@ -55,7 +55,7 @@ export function PreviewPanel() {
   
   const [activeFormat, setActiveFormat] = useState("feed")
   // Removed regenerate feature: no regenerating state
-  const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
+  const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex, selectedFormat, setSelectedFormat } = useAdPreview()
   const { budgetState, isComplete, setDailyBudget } = useBudget()
   const { campaign } = useCampaignContext()
   const { currentAd, reloadAd } = useCurrentAd()
@@ -151,6 +151,9 @@ export function PreviewPanel() {
             sections.creative = {
               imageVariations: adContent.imageVariations,
               selectedImageIndex,
+              imageUrlSquare: adContent.imageUrlSquare,
+              imageUrlVertical: adContent.imageUrlVertical,
+              selectedFormat: selectedFormat,
               format: 'feed'
             }
           }
@@ -1289,53 +1292,12 @@ export function PreviewPanel() {
   // Step 1: Ads Content with 3x2 Grid
   const adsContent = (
     <div className="space-y-6">
+      {/* Dual Format Toggle - Square (1:1) and Vertical (9:16) */}
       <div className="flex justify-center pb-4">
-        <div className="inline-flex rounded-lg border border-border p-1 bg-card">
-          {previewFormats.map((format) => {
-            const Icon = format.icon
-            const isActive = activeFormat === format.id
-
-            if (format.id === "reel") {
-              return (
-                <div key={format.id} className="relative">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleReelClick}
-                    className="px-4 relative"
-                  >
-                    <Icon className="h-3.5 w-3.5 mr-1.5" />
-                    {format.label}
-                    <Sparkles size={10} className="absolute -top-0.5 -right-0.5 text-yellow-500 animate-pulse" />
-                  </Button>
-                  {showReelMessage && (
-                    <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap animate-in fade-in slide-in-from-top-1 duration-200">
-                      <div className="bg-popover border border-border rounded-md px-3 py-1.5 shadow-md">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <Sparkles size={12} className="text-yellow-500" />
-                          <span className="font-medium">Coming Soon!</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            }
-
-            return (
-              <Button
-                key={format.id}
-                variant={isActive ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setActiveFormat(format.id)}
-                className="px-4"
-              >
-                <Icon className="h-3.5 w-3.5 mr-1.5" />
-                {format.label}
-              </Button>
-            )
-          })}
-        </div>
+        <AdMockupFormatToggle
+          selectedFormat={selectedFormat}
+          onFormatChange={setSelectedFormat}
+        />
       </div>
 
       {/* 3x2 Grid of Ad Mockups or Loading Cards */}
@@ -1349,9 +1311,10 @@ export function PreviewPanel() {
           </>
         ) : (
           // Show actual ad variations once generated
+          // Use selectedFormat from context (square or vertical)
           <>
-            {activeFormat === "feed" && adVariations.map((variation, index) => renderFeedAd(variation, index))}
-            {activeFormat === "story" && adVariations.map((variation, index) => renderStoryAd(variation, index))}
+            {selectedFormat === "square" && adVariations.map((variation, index) => renderFeedAd(variation, index))}
+            {selectedFormat === "vertical" && adVariations.map((variation, index) => renderStoryAd(variation, index))}
           </>
         )}
       </div>
