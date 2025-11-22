@@ -65,10 +65,21 @@ export async function GET(request: NextRequest) {
       const originForRedirect = `${proto}://${host}`
 
       let redirectUrl = `${originForRedirect}${next}`
-      // Add auth success indicator to trigger client-side session refresh
-      redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'auth=success'
+      
+      // Check if this OAuth flow was initiated from a popup (iframe context)
+      // If the next path includes /lovable, redirect to popup-success page
+      const isPopupFlow = next.includes('/lovable') || next === '/'
+      
+      if (isPopupFlow) {
+        // Redirect to popup success page which will close popup and notify parent
+        redirectUrl = `${originForRedirect}/auth/popup-success?next=${encodeURIComponent(next)}`
+        console.log('[OAUTH-CALLBACK] Popup flow detected, redirecting to popup-success page')
+      } else {
+        // Normal flow - add auth success indicator
+        redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'auth=success'
+      }
 
-      console.log('[OAUTH-CALLBACK] Redirecting to', { redirectUrl, cookieCount: cookiesToSet.length })
+      console.log('[OAUTH-CALLBACK] Redirecting to', { redirectUrl, isPopupFlow, cookieCount: cookiesToSet.length })
 
       const response = NextResponse.redirect(redirectUrl)
       

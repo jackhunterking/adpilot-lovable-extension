@@ -3,7 +3,7 @@
   "name": "AdPilot for Lovable",
   "short_name": "AdPilot",
   "version": "0.2.0",
-  "description": "Create and manage Meta ads directly in Lovable. Turn your project into a business with AI-powered advertising.",
+  "description": "Grow your Lovable project into a business with AI-powered Meta advertising. Create and manage ads directly in the editor.",
   "icons": {
     "16": "assets/icon-16.png",
     "48": "assets/icon-48.png",
@@ -17,7 +17,9 @@
     "https://lovable.dev/*",
     "https://*.lovable.dev/*",
     "https://*.supabase.co/*",
-    "http://localhost:3000/*"
+    "https://www.adpilot.studio/*",
+    "https://staging.adpilot.studio/*",
+    "http://localhost:*/*"
   ],
   "content_scripts": [
     {

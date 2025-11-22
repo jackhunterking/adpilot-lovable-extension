@@ -165,6 +165,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Listen for OAuth popup completion
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Security: Only accept messages from our own domain
+      const allowedOrigins = [
+        'https://www.adpilot.studio',
+        'https://staging.adpilot.studio',
+        'http://localhost:3000'
+      ]
+      
+      if (!allowedOrigins.includes(event.origin)) {
+        console.log('[AUTH-PROVIDER] Ignoring message from unauthorized origin:', event.origin)
+        return
+      }
+      
+      if (event.data.type === 'OAUTH_SUCCESS') {
+        console.log('[AUTH-PROVIDER] OAuth popup completed, refreshing session')
+        
+        // Refresh session to get the new user data
+        supabase.auth.refreshSession().then(({ data, error }) => {
+          if (error) {
+            console.error('[AUTH-PROVIDER] Error refreshing session:', error)
+          } else {
+            console.log('[AUTH-PROVIDER] Session refreshed successfully', {
+              hasSession: !!data.session,
+              userId: data.session?.user?.id,
+              userEmail: data.session?.user?.email
+            })
+            
+            setSession(data.session)
+            setUser(data.session?.user ?? null)
+            
+            if (data.session?.user) {
+              fetchProfile(data.session.user.id)
+            }
+          }
+        })
+      }
+    }
+    
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
   const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -220,6 +264,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
+    // Detect if we're in an iframe (inside Lovable)
+    const isInIframe = typeof window !== 'undefined' && window !== window.top
+
     // Read temp_prompt_id from localStorage before OAuth redirect
     const tempPromptId = typeof window !== 'undefined' 
       ? localStorage.getItem('temp_prompt_id')
@@ -227,15 +274,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Smart redirect: only go to post-login if temp prompt exists
     // Journey 1 (has temp_prompt) → /auth/post-login (creates campaign)
-    // Journey 2/3 (no temp_prompt) → / homepage (no automation)
-    const nextPath = tempPromptId ? '/auth/post-login' : '/'
+    // Journey 2/3 (no temp_prompt) → /lovable (stay in extension view)
+    const nextPath = tempPromptId ? '/auth/post-login' : '/lovable'
 
     console.log('[AUTH-PROVIDER] Starting Google OAuth', { 
       nextPath, 
       hasTempPrompt: !!tempPromptId,
+      isInIframe,
+      environment: process.env.NODE_ENV,
+      origin: typeof window !== 'undefined' ? window.location.origin : 'SSR',
       journey: tempPromptId ? 'Journey 1 (automation)' : 'Journey 2/3 (no automation)'
     })
 
+    // Use the actual origin where the app is running
     const origin = typeof window !== 'undefined' ? window.location.origin : undefined
     const redirectTo = origin
       ? `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
@@ -245,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const oauthOptions: {
       redirectTo?: string
       data?: { temp_prompt_id: string }
+      skipBrowserRedirect?: boolean
     } = {}
     
     if (redirectTo) {
@@ -256,10 +308,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[AUTH-PROVIDER] Attaching temp_prompt_id to OAuth metadata for Journey 1')
     }
 
-    await supabase.auth.signInWithOAuth({
+    // Force popup mode when in iframe to avoid third-party cookie issues
+    if (isInIframe) {
+      oauthOptions.skipBrowserRedirect = true
+      console.log('[AUTH-PROVIDER] Using popup mode (iframe detected)')
+    }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: Object.keys(oauthOptions).length > 0 ? oauthOptions : undefined,
     })
+
+    if (error) {
+      console.error('[AUTH-PROVIDER] OAuth error:', error)
+      return
+    }
+
+    // If in iframe and we have a URL, open in popup
+    if (isInIframe && data?.url) {
+      const width = 500
+      const height = 700
+      const left = window.screen.width / 2 - width / 2
+      const top = window.screen.height / 2 - height / 2
+      
+      const popup = window.open(
+        data.url,
+        'google-oauth-popup',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+      )
+
+      if (!popup) {
+        console.error('[AUTH-PROVIDER] Popup blocked! Please allow popups for this site.')
+        alert('Please allow popups to sign in with Google')
+      } else {
+        console.log('[AUTH-PROVIDER] OAuth popup opened successfully')
+      }
+    }
   }
 
   const value = {
