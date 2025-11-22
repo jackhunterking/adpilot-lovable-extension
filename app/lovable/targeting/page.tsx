@@ -6,9 +6,6 @@
 "use client"
 
 import { useState } from "react"
-
-// Force dynamic rendering (requires authentication and context)
-export const dynamic = 'force-dynamic'
 import { LovableLayout } from "@/components/lovable/lovable-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +19,10 @@ import { useLocation } from "@/lib/context/location-context"
 import { Loader2, MapPin, Plus, X, Search } from "lucide-react"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
+
+// Force dynamic rendering (requires authentication and context)
+export const dynamicParams = true
+export const revalidate = 0
 
 // Dynamically import map to avoid SSR issues
 const LocationTargetingMap = dynamic(
