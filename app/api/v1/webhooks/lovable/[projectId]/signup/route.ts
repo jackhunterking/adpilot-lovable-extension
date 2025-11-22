@@ -35,11 +35,11 @@ import { LovableConversionService } from '@/lib/services/lovable';
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
-    // 1. Get project ID from params
-    const { projectId } = params;
+    // 1. Get project ID from params (Next.js 16: params is now a Promise)
+    const { projectId } = await params;
 
     if (!projectId) {
       return NextResponse.json(
@@ -118,12 +118,13 @@ export async function POST(
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
   return NextResponse.json({
     success: true,
     message: 'Webhook endpoint active',
-    projectId: params.projectId
+    projectId
   });
 }
 

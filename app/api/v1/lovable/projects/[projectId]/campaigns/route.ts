@@ -29,7 +29,7 @@ import { LovableSyncService } from '@/lib/services/lovable';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     // 1. Authenticate user
@@ -49,8 +49,8 @@ export async function GET(
       );
     }
 
-    // 2. Get project ID from params
-    const { projectId } = params;
+    // 2. Get project ID from params (Next.js 16: params is now a Promise)
+    const { projectId } = await params;
 
     if (!projectId) {
       return NextResponse.json(
