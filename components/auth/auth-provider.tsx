@@ -115,20 +115,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           try {
             if (session) {
-              // Success: notify parent
-              console.log('[POPUP] Session established, notifying parent and waiting for cookie persistence')
+              // Success: send session data to parent (localStorage not shared between windows)
+              console.log('[POPUP] Session established, sending session data to parent')
               window.opener.postMessage(
-                { type: 'OAUTH_SUCCESS' },
+                { 
+                  type: 'OAUTH_SUCCESS',
+                  session: {
+                    access_token: session.access_token,
+                    refresh_token: session.refresh_token,
+                    expires_at: session.expires_at,
+                    expires_in: session.expires_in,
+                    token_type: session.token_type,
+                    user: session.user
+                  }
+                },
                 window.location.origin
               )
               
-              // CRITICAL: Wait for cookies to be written to persistent storage
-              // Browser needs time to flush cookies from memory to disk
-              // Without this delay, parent window won't find the cookies
+              // Give postMessage time to send session data to parent
               setTimeout(() => {
-                console.log('[POPUP] Closing popup after cookie persistence delay (1000ms)')
+                console.log('[POPUP] Closing popup after session transfer')
                 window.close()
-              }, 1000) // Increased from 100ms to 1000ms for cookie persistence
+              }, 300) // Wait for postMessage to complete
               
             } else {
               // No session: notify parent of error and close
@@ -216,40 +224,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (event.data.type === 'OAUTH_SUCCESS') {
-        console.log('[AUTH-PROVIDER] OAuth popup succeeded, getting session with retry')
+        console.log('[AUTH-PROVIDER] OAuth popup succeeded, receiving session data')
         
-        // Retry logic: Storage sync can take 100-500ms across windows
-        const attemptGetSession = async (retryCount = 0, maxRetries = 5) => {
-          const { data, error } = await supabase.auth.getSession()
+        // FIXED: Receive session data directly from popup via postMessage
+        // This bypasses localStorage isolation between windows
+        if (event.data.session) {
+          console.log('[AUTH-PROVIDER] Session data received from popup, setting in parent')
           
-          if (error) {
-            console.error('[AUTH-PROVIDER] Error getting session after popup:', error)
-            return
-          }
-          
-          if (data.session) {
-            console.log('[AUTH-PROVIDER] Session retrieved successfully after popup')
-            setSession(data.session)
-            setUser(data.session?.user ?? null)
-            
-            if (data.session?.user) {
-              fetchProfile(data.session.user.id)
+          // Use Supabase setSession to store in parent's localStorage
+          supabase.auth.setSession({
+            access_token: event.data.session.access_token,
+            refresh_token: event.data.session.refresh_token
+          }).then(({ data, error }) => {
+            if (error) {
+              console.error('[AUTH-PROVIDER] Error setting session in parent:', error)
+            } else if (data.session) {
+              console.log('[AUTH-PROVIDER] Session set successfully in parent window')
+              setSession(data.session)
+              setUser(data.session.user)
+              
+              if (data.session.user) {
+                fetchProfile(data.session.user.id)
+              }
             }
-          } else if (retryCount < maxRetries) {
-            // No session yet, retry after delay
-            console.log(`[AUTH-PROVIDER] No session found, retrying (${retryCount + 1}/${maxRetries})...`)
-            setTimeout(() => {
-              attemptGetSession(retryCount + 1, maxRetries)
-            }, 200) // Wait 200ms between retries
-          } else {
-            console.warn('[AUTH-PROVIDER] No session found after all retries, will rely on onAuthStateChange')
-          }
+          })
+        } else {
+          console.warn('[AUTH-PROVIDER] No session data in message, falling back to onAuthStateChange')
         }
-        
-        // Start with a small initial delay to let storage sync
-        setTimeout(() => {
-          attemptGetSession()
-        }, 100)
       } else if (event.data.type === 'OAUTH_ERROR') {
         console.error('[AUTH-PROVIDER] OAuth popup failed:', event.data.error)
         // UI remains in unauthenticated state - user can retry
