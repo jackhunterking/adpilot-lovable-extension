@@ -1,9 +1,13 @@
 /**
- * Feature: Google OAuth callback handler
- * Purpose: Exchanges the OAuth "code" for a Supabase session and redirects back to the app
+ * Feature: Email/Magic Link callback handler
+ * Purpose: Handles email verification and magic link sign-in redirects
+ * 
+ * NOTE: Google OAuth uses popup mode (handled entirely client-side by Supabase).
+ *       This route is ONLY for email-based flows (verification, magic links, password reset).
+ * 
  * References:
- *  - Supabase (Login with Google → Next.js): https://supabase.com/docs/guides/auth/social-login/auth-google#signing-users-in
- *  - Supabase (Server-side client): https://supabase.com/docs/guides/auth/server-side/creating-a-client
+ *  - Supabase Email Auth: https://supabase.com/docs/guides/auth/server-side-auth
+ *  - Supabase Magic Links: https://supabase.com/docs/guides/auth/auth-magic-link
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
@@ -64,22 +68,10 @@ export async function GET(request: NextRequest) {
       const proto = request.headers.get('x-forwarded-proto') ?? currentUrl.protocol.replace(':', '')
       const originForRedirect = `${proto}://${host}`
 
-      let redirectUrl = `${originForRedirect}${next}`
+      // Simple redirect with success indicator
+      const redirectUrl = `${originForRedirect}${next}${next.includes('?') ? '&' : '?'}auth=success`
       
-      // Check if this OAuth flow was initiated from a popup (iframe context)
-      // If the next path includes /lovable, redirect to popup-success page
-      const isPopupFlow = next.includes('/lovable') || next === '/'
-      
-      if (isPopupFlow) {
-        // Redirect to popup success page which will close popup and notify parent
-        redirectUrl = `${originForRedirect}/auth/popup-success?next=${encodeURIComponent(next)}`
-        console.log('[OAUTH-CALLBACK] Popup flow detected, redirecting to popup-success page')
-      } else {
-        // Normal flow - add auth success indicator
-        redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'auth=success'
-      }
-
-      console.log('[OAUTH-CALLBACK] Redirecting to', { redirectUrl, isPopupFlow, cookieCount: cookiesToSet.length })
+      console.log('[OAUTH-CALLBACK] Redirecting to', { redirectUrl, cookieCount: cookiesToSet.length })
 
       const response = NextResponse.redirect(redirectUrl)
       
@@ -106,18 +98,17 @@ export async function GET(request: NextRequest) {
     console.error('[OAUTH-CALLBACK] No code provided in callback')
   }
 
-  // FIXED: Always redirect to popup-success even on error
-  // This ensures popup closes gracefully and notifies parent (Lovable iframe)
-  console.log('[OAUTH-CALLBACK] Auth failed, redirecting to popup-success with error')
+  // Auth failed - redirect to destination with error parameter
+  console.log('[OAUTH-CALLBACK] Auth failed, redirecting with error indicator')
   
   const currentUrl = new URL(request.url)
   const host = request.headers.get('host') ?? currentUrl.host
   const proto = request.headers.get('x-forwarded-proto') ?? currentUrl.protocol.replace(':', '')
   const originForRedirect = `${proto}://${host}`
   
-  // Redirect to popup-success with error indicator
+  // Redirect to next destination with error indicator
   const errorResponse = NextResponse.redirect(
-    `${originForRedirect}/auth/popup-success?error=true&next=${encodeURIComponent(next)}`
+    `${originForRedirect}${next}${next.includes('?') ? '&' : '?'}auth_error=true`
   )
   cookiesToSet.forEach(({ name, value, options }) => errorResponse.cookies.set(name, value, options))
   return errorResponse

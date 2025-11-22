@@ -165,53 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Listen for OAuth popup completion
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Security: Only accept messages from our own domain
-      const allowedOrigins = [
-        'https://www.adpilot.studio',
-        'https://staging.adpilot.studio',
-        'http://localhost:3000'
-      ]
-      
-      if (!allowedOrigins.includes(event.origin)) {
-        console.log('[AUTH-PROVIDER] Ignoring message from unauthorized origin:', event.origin)
-        return
-      }
-      
-      if (event.data.type === 'OAUTH_SUCCESS') {
-        console.log('[AUTH-PROVIDER] OAuth popup completed, refreshing session')
-        
-        // Refresh session to get the new user data
-        supabase.auth.refreshSession().then(({ data, error }) => {
-          if (error) {
-            console.error('[AUTH-PROVIDER] Error refreshing session:', error)
-          } else {
-            console.log('[AUTH-PROVIDER] Session refreshed successfully', {
-              hasSession: !!data.session,
-              userId: data.session?.user?.id,
-              userEmail: data.session?.user?.email
-            })
-            
-            setSession(data.session)
-            setUser(data.session?.user ?? null)
-            
-            if (data.session?.user) {
-              fetchProfile(data.session.user.id)
-            }
-          }
-        })
-      } else if (event.data.type === 'OAUTH_ERROR') {
-        console.error('[AUTH-PROVIDER] OAuth popup failed', event.data.error)
-        // Popup closed gracefully with error - user stays in Lovable
-        // Could show a toast notification here in the future
-      }
-    }
-    
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
+  // NOTE: No message listener needed - Supabase automatically updates session
+  // when OAuth popup completes. The onAuthStateChange listener above handles it.
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -268,59 +223,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
-    // Detect if we're in an iframe (inside Lovable)
-    const isInIframe = typeof window !== 'undefined' && window !== window.top
-
     // Read temp_prompt_id from localStorage before OAuth redirect
     const tempPromptId = typeof window !== 'undefined' 
       ? localStorage.getItem('temp_prompt_id')
       : null
 
-    // Smart redirect: only go to post-login if temp prompt exists
-    // Journey 1 (has temp_prompt) → /auth/post-login (creates campaign)
-    // Journey 2/3 (no temp_prompt) → /lovable (stay in extension view)
-    const nextPath = tempPromptId ? '/auth/post-login' : '/lovable'
-
-    console.log('[AUTH-PROVIDER] Starting Google OAuth', { 
-      nextPath, 
+    console.log('[AUTH-PROVIDER] Starting Google OAuth (popup mode)', { 
       hasTempPrompt: !!tempPromptId,
-      isInIframe,
-      environment: process.env.NODE_ENV,
-      origin: typeof window !== 'undefined' ? window.location.origin : 'SSR',
       journey: tempPromptId ? 'Journey 1 (automation)' : 'Journey 2/3 (no automation)'
     })
 
-    // Use the actual origin where the app is running
-    const origin = typeof window !== 'undefined' ? window.location.origin : undefined
-    const redirectTo = origin
-      ? `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
-      : undefined
-
-    // Build OAuth options with temp_prompt_id in user metadata if available
-    const oauthOptions: {
-      redirectTo?: string
-      data?: { temp_prompt_id: string }
-      skipBrowserRedirect?: boolean
-    } = {}
-    
-    if (redirectTo) {
-      oauthOptions.redirectTo = redirectTo
-    }
-    
-    if (tempPromptId) {
-      oauthOptions.data = { temp_prompt_id: tempPromptId }
-      console.log('[AUTH-PROVIDER] Attaching temp_prompt_id to OAuth metadata for Journey 1')
-    }
-
-    // Force popup mode when in iframe to avoid third-party cookie issues
-    if (isInIframe) {
-      oauthOptions.skipBrowserRedirect = true
-      console.log('[AUTH-PROVIDER] Using popup mode (iframe detected)')
-    }
-
+    // SIMPLIFIED: Always use popup mode (works everywhere, handles PKCE perfectly)
+    // No redirectTo needed - Supabase handles OAuth entirely in popup window
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: Object.keys(oauthOptions).length > 0 ? oauthOptions : undefined,
+      options: {
+        skipBrowserRedirect: true,  // Pure popup mode - Supabase handles everything
+        data: tempPromptId ? { temp_prompt_id: tempPromptId } : undefined
+      }
     })
 
     if (error) {
@@ -328,8 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // If in iframe and we have a URL, open in popup
-    if (isInIframe && data?.url) {
+    // Open OAuth popup - Supabase automatically updates session when complete
+    if (data?.url) {
       const width = 500
       const height = 700
       const left = window.screen.width / 2 - width / 2
@@ -342,10 +262,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       )
 
       if (!popup) {
-        console.error('[AUTH-PROVIDER] Popup blocked! Please allow popups for this site.')
+        console.error('[AUTH-PROVIDER] Popup blocked by browser')
         alert('Please allow popups to sign in with Google')
       } else {
-        console.log('[AUTH-PROVIDER] OAuth popup opened successfully')
+        console.log('[AUTH-PROVIDER] OAuth popup opened - session will update automatically')
       }
     }
   }
