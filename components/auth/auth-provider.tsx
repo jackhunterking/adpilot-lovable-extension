@@ -115,24 +115,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           try {
             if (session) {
-              // Success: notify parent and close
+              // Success: notify parent
+              console.log('[POPUP] Session established, notifying parent and waiting for cookie persistence')
               window.opener.postMessage(
                 { type: 'OAUTH_SUCCESS' },
                 window.location.origin
               )
+              
+              // CRITICAL: Wait for cookies to be written to persistent storage
+              // Browser needs time to flush cookies from memory to disk
+              // Without this delay, parent window won't find the cookies
+              setTimeout(() => {
+                console.log('[POPUP] Closing popup after cookie persistence delay (1000ms)')
+                window.close()
+              }, 1000) // Increased from 100ms to 1000ms for cookie persistence
+              
             } else {
               // No session: notify parent of error and close
+              console.log('[POPUP] No session found, notifying parent of error')
               window.opener.postMessage(
                 { type: 'OAUTH_ERROR', error: 'No session established' },
                 window.location.origin
               )
+              
+              setTimeout(() => {
+                console.log('[POPUP] Closing popup after error')
+                window.close()
+              }, 500)
             }
-            
-            // Give postMessage time to send, then close
-            setTimeout(() => {
-              console.log('[AUTH-PROVIDER] Closing popup')
-              window.close()
-            }, 100)
             
             return // Don't continue initialization in popup
           } catch (err) {
