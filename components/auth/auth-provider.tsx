@@ -206,15 +206,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (event.data.type === 'OAUTH_SUCCESS') {
-        console.log('[AUTH-PROVIDER] OAuth popup succeeded, getting session')
+        console.log('[AUTH-PROVIDER] OAuth popup succeeded, getting session with retry')
         
-        // Get session from storage (created by popup)
-        // Note: We use getSession() not refreshSession() because the parent
-        // doesn't have a session yet - it was created in the popup
-        supabase.auth.getSession().then(({ data, error }) => {
+        // Retry logic: Storage sync can take 100-500ms across windows
+        const attemptGetSession = async (retryCount = 0, maxRetries = 5) => {
+          const { data, error } = await supabase.auth.getSession()
+          
           if (error) {
             console.error('[AUTH-PROVIDER] Error getting session after popup:', error)
-          } else if (data.session) {
+            return
+          }
+          
+          if (data.session) {
             console.log('[AUTH-PROVIDER] Session retrieved successfully after popup')
             setSession(data.session)
             setUser(data.session?.user ?? null)
@@ -222,10 +225,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (data.session?.user) {
               fetchProfile(data.session.user.id)
             }
+          } else if (retryCount < maxRetries) {
+            // No session yet, retry after delay
+            console.log(`[AUTH-PROVIDER] No session found, retrying (${retryCount + 1}/${maxRetries})...`)
+            setTimeout(() => {
+              attemptGetSession(retryCount + 1, maxRetries)
+            }, 200) // Wait 200ms between retries
           } else {
-            console.warn('[AUTH-PROVIDER] No session found after popup, will retry via onAuthStateChange')
+            console.warn('[AUTH-PROVIDER] No session found after all retries, will rely on onAuthStateChange')
           }
-        })
+        }
+        
+        // Start with a small initial delay to let storage sync
+        setTimeout(() => {
+          attemptGetSession()
+        }, 100)
       } else if (event.data.type === 'OAUTH_ERROR') {
         console.error('[AUTH-PROVIDER] OAuth popup failed:', event.data.error)
         // UI remains in unauthenticated state - user can retry
