@@ -99,7 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         // Get current session first to check if we already have one
-        let { data: { session } } = await supabase.auth.getSession()
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        console.log('[AUTH-PROVIDER] Init - checking for existing session', { 
+          hasSession: !!session,
+          sessionError: sessionError?.message,
+          userId: session?.user?.id,
+          userEmail: session?.user?.email,
+          expiresAt: session?.expires_at,
+          hasRefreshToken: !!session?.refresh_token,
+          hasAuthCallback
+        })
         
         // Only refresh if coming from OAuth callback AND we don't already have a session
         if (hasAuthCallback && !session) {
@@ -108,6 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           session = refreshResult.data.session
         } else if (hasAuthCallback && session) {
           console.log('[AUTH-PROVIDER] OAuth callback with existing session, skipping refresh')
+        } else if (session) {
+          console.log('[AUTH-PROVIDER] Found existing session on init (will survive refresh)')
+        } else {
+          console.log('[AUTH-PROVIDER] No existing session found on init')
         }
         
         console.log('[AUTH-PROVIDER] Got session', { 
@@ -225,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Listen for OAuth popup completion
   useEffect(() => {
-    const handleOAuthMessage = (event: MessageEvent) => {
+    const handleOAuthMessage = async (event: MessageEvent) => {
       // Security: Only accept messages from our own origin
       if (event.origin !== window.location.origin) {
         return
@@ -239,23 +253,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event.data.session) {
           console.log('[AUTH-PROVIDER] Session data received from popup, setting in parent')
           
-          // Use Supabase setSession to store in parent's localStorage
-          supabase.auth.setSession({
-            access_token: event.data.session.access_token,
-            refresh_token: event.data.session.refresh_token
-          }).then(({ data, error }) => {
+          try {
+            // CRITICAL: await setSession to ensure it completes and persists to localStorage
+            const { data, error } = await supabase.auth.setSession({
+              access_token: event.data.session.access_token,
+              refresh_token: event.data.session.refresh_token
+            })
+            
             if (error) {
-              console.error('[AUTH-PROVIDER] Error setting session in parent:', error)
-            } else if (data.session) {
-              console.log('[AUTH-PROVIDER] Session set successfully in parent window')
+              console.error('[AUTH-PROVIDER] Error setting session:', error)
+              return
+            }
+            
+            if (data.session) {
+              console.log('[AUTH-PROVIDER] Session persisted to localStorage successfully')
+              
+              // Update React state
               setSession(data.session)
               setUser(data.session.user)
               
               if (data.session.user) {
-                fetchProfile(data.session.user.id)
+                await fetchProfile(data.session.user.id)
               }
+              
+              // Verify persistence by checking localStorage
+              setTimeout(async () => {
+                const check = await supabase.auth.getSession()
+                console.log('[AUTH-PROVIDER] Persistence verification:', {
+                  sessionExists: !!check.data.session,
+                  userId: check.data.session?.user?.id,
+                  willSurviveRefresh: !!check.data.session
+                })
+                
+                if (!check.data.session) {
+                  console.error('[AUTH-PROVIDER] WARNING: Session not persisted properly!')
+                }
+              }, 100)
             }
-          })
+          } catch (err) {
+            console.error('[AUTH-PROVIDER] Error in session transfer:', err)
+          }
         } else {
           console.warn('[AUTH-PROVIDER] No session data in message, falling back to onAuthStateChange')
         }
