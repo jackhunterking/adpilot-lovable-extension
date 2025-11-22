@@ -437,6 +437,31 @@ function createAdPilotPanel() {
 - ✅ Batch operations
 - ✅ Debounce expensive operations
 
+## Server Configuration
+
+The extension supports three environments:
+
+```javascript
+// Server configuration (content/inject.js)
+const SERVER_CONFIG = {
+  staging: 'https://staging.adpilot.studio/lovable',
+  prod: 'https://www.adpilot.studio/lovable',
+  dev: 'http://localhost:3000/lovable'
+};
+```
+
+**Default behavior:**
+- Packaged extensions → Production
+- Unpacked extensions → Staging
+
+**Override environment:**
+```javascript
+// In Chrome DevTools console on Lovable page
+chrome.storage.local.set({adpilot_server: 'dev'})    // localhost
+chrome.storage.local.set({adpilot_server: 'staging'}) // staging
+chrome.storage.local.set({adpilot_server: 'prod'})    // production
+```
+
 ## Testing
 
 **Chrome extension:**
@@ -453,6 +478,7 @@ function createAdPilotPanel() {
 - ✅ Panel opens correctly
 - ✅ Context shared with iframe
 - ✅ No console errors
+- ✅ Iframe loads from correct server
 
 **Backend testing:**
 ```bash

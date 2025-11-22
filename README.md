@@ -91,7 +91,13 @@ npm run dev
 
 ### Environment Variables
 
-Create `.env.local` in the project root:
+Copy `.env.example` to `.env.local` and configure:
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables:
 
 ```bash
 # Supabase (Required)

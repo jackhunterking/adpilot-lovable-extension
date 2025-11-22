@@ -1,7 +1,7 @@
 {
   "headers": [
     {
-      "source": "/lovable/:path*",
+      "source": "/:path*",
       "headers": [
         {
           "key": "Content-Security-Policy",

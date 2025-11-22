@@ -11,6 +11,20 @@
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('[AdPilot] Extension installed:', details.reason);
   
+  // Set default server configuration
+  chrome.storage.local.get(['adpilot_server'], (result) => {
+    if (!result.adpilot_server) {
+      // Default to staging for unpacked extensions, production for packaged
+      const manifest = chrome.runtime.getManifest();
+      const defaultServer = manifest.update_url ? 'prod' : 'staging';
+      
+      chrome.storage.local.set({ adpilot_server: defaultServer }, () => {
+        console.log('[AdPilot] Default server set to:', defaultServer);
+        console.log('[AdPilot] Change with: chrome.storage.local.set({adpilot_server: "dev|staging|prod"})');
+      });
+    }
+  });
+  
   if (details.reason === 'install') {
     // First install - show welcome page
     chrome.tabs.create({

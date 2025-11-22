@@ -19,30 +19,33 @@
  * - Grow: ?view=grow (ours)
  */
 
-console.log('[AdPilot] Content script loaded - v0.2.0');
+console.log('[AdPilot] Content script loaded - v0.3.0');
+
+// Server configuration
+const SERVER_CONFIG = {
+  staging: 'https://staging.adpilot.studio/lovable',
+  prod: 'https://www.adpilot.studio/lovable',
+  dev: 'http://localhost:3000/lovable'
+};
+
+// Global server URL - initialized asynchronously
+let SERVER_URL = null;
 
 // Verify we're on Lovable
 function isLovableEditor() {
   const isLovable = window.location.hostname.includes('lovable.dev') && 
                     window.location.pathname.includes('/projects/');
-  console.log('[AdPilot] Is Lovable editor:', isLovable);
   return isLovable;
 }
 
 // Extract project ID
 function getLovableProjectId() {
   const match = window.location.pathname.match(/\/projects\/([^\/\?]+)/);
-  const projectId = match ? match[1] : null;
-  console.log('[AdPilot] Project ID:', projectId);
-  return projectId;
+  return match ? match[1] : null;
 }
 
 // Find navigation container (evidence-based)
 function findNavigationContainer(silent = false) {
-  if (!silent) {
-    console.log('[AdPilot] Searching for navigation container...');
-  }
-  
   // Strategy 1: Find button with Cloud text and traverse to UL
   const allButtons = Array.from(document.querySelectorAll('button'));
   
@@ -54,7 +57,6 @@ function findNavigationContainer(silent = false) {
   if (cloudButton) {
     const ul = cloudButton.closest('ul');
     if (ul) {
-      if (!silent) console.log('[AdPilot] ✓ Found navigation UL via Cloud button');
       return { container: ul, cloudButton };
     }
   }
@@ -68,7 +70,6 @@ function findNavigationContainer(silent = false) {
   if (codeButton) {
     const ul = codeButton.closest('ul');
     if (ul) {
-      if (!silent) console.log('[AdPilot] ✓ Found navigation UL via Code button');
       return { container: ul, cloudButton: null };
     }
   }
@@ -83,7 +84,6 @@ function findNavigationContainer(silent = false) {
       
       // Check if this looks like the navigation UL
       if (buttonTexts.some(t => t?.includes('Cloud') || t?.includes('Code') || t?.includes('Preview'))) {
-        if (!silent) console.log('[AdPilot] ✓ Found navigation UL by button content');
         return { container: ul, cloudButton: null };
       }
     }
@@ -94,19 +94,12 @@ function findNavigationContainer(silent = false) {
   if (nav) {
     const ul = nav.querySelector('ul');
     if (ul && ul.querySelectorAll('button').length >= 2) {
-      if (!silent) console.log('[AdPilot] ✓ Found navigation UL inside nav element');
       return { container: ul, cloudButton: null };
     }
   }
   
-  // Only log detailed debug info if not silent
   if (!silent) {
     console.error('[AdPilot] ❌ Navigation container not found');
-    console.log('[AdPilot] Debug info:');
-    console.log('  - Total buttons:', allButtons.length);
-    console.log('  - Total ULs:', allUls.length);
-    console.log('  - Document elements:', document.querySelectorAll('*').length);
-    console.log('  - Button texts (first 10):', allButtons.slice(0, 10).map(b => b.textContent?.trim()));
   }
   
   return null;
@@ -114,17 +107,14 @@ function findNavigationContainer(silent = false) {
 
 // Inject Grow button into sidebar
 function injectGrowButton() {
-  console.log('[AdPilot] Injecting Grow button...');
-  
   const nav = findNavigationContainer();
   if (!nav) {
-    console.error('[AdPilot] Cannot inject - no container found');
+    console.error('[AdPilot] ❌ Cannot inject - no container found');
     return false;
   }
   
   // Check if already injected
   if (document.getElementById('adpilot-grow-li')) {
-    console.log('[AdPilot] Already injected');
     return true;
   }
   
@@ -173,39 +163,19 @@ function injectGrowButton() {
   
   // Always append to the END of the navigation UL (last position)
   nav.container.appendChild(li);
-  console.log('[AdPilot] ✓ Injected as last navigation button');
+  console.log('[AdPilot] ✅ Grow button injected');
   return true;
 }
 
 // Deactivate Lovable's currently active tab (URL-based detection)
-// Lovable uses ?view parameter to determine which tab is active
-// We don't need to manipulate CSS - just let Lovable's routing handle it
+// Note: We don't need to manually deactivate buttons
+// Lovable's native routing handles visual state changes
 function deactivateLovableButtons() {
-  // Get current view from URL to know which tab is active
-  const params = new URLSearchParams(window.location.search);
-  const currentView = params.get('view');
-  
-  if (!currentView) {
-    console.log('[AdPilot] No active tab (Preview mode) - nothing to deactivate');
-    return;
-  }
-  
-  if (currentView === 'grow') {
-    console.log('[AdPilot] Grow tab already active - nothing to deactivate');
-    return;
-  }
-  
-  console.log(`[AdPilot] Current active tab: ${currentView} - will be deactivated by Lovable's routing`);
-  // Note: We don't need to manually deactivate buttons anymore
-  // Lovable's native routing will handle the visual state changes
-  // when we update the URL to ?view=grow
+  // Lovable's routing will handle deactivation automatically
 }
 
 // Navigate to Grow view (URL-based, matching Lovable pattern)
 function navigateToGrow() {
-  console.log('[AdPilot] Navigating to Grow view');
-  
-  // CRITICAL: Deactivate Lovable buttons first
   deactivateLovableButtons();
   
   // Update URL parameter (match Lovable's ?view= pattern)
@@ -293,11 +263,28 @@ function updatePanelTitle(titleText) {
   }
 }
 
-// Create iframe element - SIMPLIFIED (no async port detection)
+// Get server URL from storage (async)
+async function getServerUrl() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['adpilot_server'], (result) => {
+      const server = result.adpilot_server || 'staging'; // Default to staging
+      const url = SERVER_CONFIG[server] || SERVER_CONFIG.staging;
+      console.log('[AdPilot] Using server:', server, '→', url);
+      resolve(url);
+    });
+  });
+}
+
+// Create iframe element
 function createIframe() {
+  if (!SERVER_URL) {
+    console.error('[AdPilot] ❌ SERVER_URL not initialized');
+    return null;
+  }
+  
   const iframe = document.createElement('iframe');
   iframe.id = 'adpilot-iframe';
-  iframe.src = SERVER_URL; // Use the configured server URL (prod/staging/dev)
+  iframe.src = SERVER_URL;
   iframe.className = 'w-full h-full flex-1';
   iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
   iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
@@ -307,118 +294,26 @@ function createIframe() {
   // Add error handler
   iframe.addEventListener('error', (e) => {
     console.error('[AdPilot] ❌ Iframe failed to load:', e);
-    console.error(`[AdPilot] URL: ${SERVER_URL}`);
-    if (SERVER_URL === DEV_SERVER_URL) {
-      console.error('[AdPilot] Make sure dev server is running: npm run dev');
-    } else {
-      console.error('[AdPilot] Check that the server is accessible and headers are configured correctly');
-    }
+    console.error('[AdPilot] URL:', SERVER_URL);
   });
   
   // Add load handler
   iframe.addEventListener('load', () => {
-    console.log('[AdPilot] ✅ Iframe loaded from', SERVER_URL);
+    console.log('[AdPilot] ✅ Iframe loaded successfully');
     sendProjectContext(iframe);
   });
   
-  console.log('[AdPilot] Created iframe with src:', SERVER_URL);
   return iframe;
-}
-
-// Configuration: Server URLs for different environments
-const PROD_SERVER_URL = 'https://www.adpilot.studio/lovable';
-const STAGING_SERVER_URL = 'https://staging.adpilot.studio/lovable';
-const DEV_SERVER_URL = 'http://localhost:3000/lovable';
-
-// Smart environment detection
-function getServerUrl() {
-  // Strategy 1: Check if running as packaged extension (production)
-  // Packaged extensions have update_url in manifest
-  const manifest = chrome.runtime.getManifest();
-  if (manifest.update_url) {
-    console.log('[AdPilot] Detected packaged extension - using PRODUCTION');
-    return PROD_SERVER_URL;
-  }
-  
-  // Strategy 2: Check for environment override in extension storage
-  // This is async, so we'll handle it separately below
-  // For now, return staging as default for unpacked extension
-  console.log('[AdPilot] Detected unpacked extension - using STAGING (override via storage if needed)');
-  return STAGING_SERVER_URL;
-}
-
-// Initialize SERVER_URL with smart detection
-let SERVER_URL = getServerUrl();
-
-// Strategy 3: Check for developer override in storage (async)
-chrome.storage.local.get(['adpilot_env'], (result) => {
-  if (result.adpilot_env) {
-    const previousUrl = SERVER_URL;
-    
-    switch (result.adpilot_env) {
-      case 'production':
-      case 'prod':
-        SERVER_URL = PROD_SERVER_URL;
-        break;
-      case 'staging':
-        SERVER_URL = STAGING_SERVER_URL;
-        break;
-      case 'development':
-      case 'dev':
-        SERVER_URL = DEV_SERVER_URL;
-        break;
-    }
-    
-    if (SERVER_URL !== previousUrl) {
-      console.log('[AdPilot] Environment override applied:', result.adpilot_env);
-      console.log('[AdPilot] Using server URL:', SERVER_URL);
-      console.log('[AdPilot] 💡 To change: chrome.storage.local.set({adpilot_env: "dev|staging|prod"})');
-    }
-  }
-});
-
-console.log('[AdPilot] Initial server URL:', SERVER_URL);
-console.log('[AdPilot] 💡 Developers: Override environment in console:');
-console.log('[AdPilot]    chrome.storage.local.set({adpilot_env: "dev"}) for localhost');
-console.log('[AdPilot]    chrome.storage.local.set({adpilot_env: "staging"}) for staging');
-console.log('[AdPilot]    chrome.storage.local.set({adpilot_env: "prod"}) for production');
-
-// Check if development server is running (only for localhost)
-async function checkLocalServerRunning() {
-  // Only check if using localhost
-  if (SERVER_URL !== DEV_SERVER_URL) {
-    return true; // Assume production/staging is always available
-  }
-  
-  try {
-    const response = await fetch(DEV_SERVER_URL, {
-      method: 'HEAD',
-      mode: 'no-cors', // no-cors mode to avoid CORS issues
-      cache: 'no-cache'
-    });
-    // In no-cors mode, we can't read the response, but if it doesn't throw, server is likely up
-    console.log(`[AdPilot] ✅ Dev server is running at ${DEV_SERVER_URL}`);
-    return true;
-  } catch (error) {
-    console.warn(`[AdPilot] ⚠️  Dev server not found at ${DEV_SERVER_URL}`);
-    console.warn('[AdPilot] 💡 Make sure to run: npm run dev');
-    return false;
-  }
 }
 
 // Show AdPilot panel (Mimic React's tab behavior exactly)
 function showAdPilotPanel() {
-  console.log('[AdPilot] Showing Grow panel');
-  
-  // Deactivate Lovable buttons FIRST (before any DOM changes)
   deactivateLovableButtons();
-  
-  checkLocalServerRunning();
   
   // Step 1: Find right panel
   const rightPanel = document.querySelector('[data-panel]:last-child');
   if (!rightPanel) {
-    console.error('[AdPilot] Right panel not found');
+    console.error('[AdPilot] ❌ Right panel not found');
     return;
   }
   
@@ -427,7 +322,6 @@ function showAdPilotPanel() {
   
   if (!tabDiv) {
     // No tab div exists - must be coming from Preview
-    console.log('[AdPilot] No tab div exists, creating one (coming from Preview)');
     tabDiv = document.createElement('div');
     tabDiv.className = 'absolute inset-0 z-10 flex flex-col bg-background';
     
@@ -435,38 +329,36 @@ function showAdPilotPanel() {
     const preview = rightPanel.querySelector('.relative.h-full.w-full');
     if (preview && preview.parentElement) {
       preview.parentElement.appendChild(tabDiv);
-      console.log('[AdPilot] ✅ Created tab div as sibling to preview');
     } else {
       console.error('[AdPilot] ❌ Could not find parent to insert tab div');
       return;
     }
-  } else {
-    console.log('[AdPilot] ✅ Reusing existing tab div (coming from another tab)');
   }
   
   // Step 3: Hide preview if it's still visible
   const preview = rightPanel.querySelector('.relative.h-full.w-full');
   if (preview && !preview.classList.contains('invisible')) {
     preview.classList.add('invisible');
-    console.log('[AdPilot] Hidden preview');
   }
   
   // Step 4: Clear and inject our iframe
   tabDiv.innerHTML = '';
   const iframe = createIframe();
-  tabDiv.appendChild(iframe);
-  tabDiv.setAttribute('data-adpilot-active', 'true');
-  
-  // Update the panel title to "Grow"
-  updatePanelTitle('Grow');
-  
-  console.log('[AdPilot] ✅ Grow panel shown with iframe');
+  if (iframe) {
+    tabDiv.appendChild(iframe);
+    tabDiv.setAttribute('data-adpilot-active', 'true');
+    
+    // Update the panel title to "Grow"
+    updatePanelTitle('Grow');
+    
+    console.log('[AdPilot] ✅ Grow panel shown with iframe');
+  } else {
+    console.error('[AdPilot] ❌ Failed to create iframe');
+  }
 }
 
 // Hide panel and restore Lovable content (Mimic React's tab behavior exactly)
 function hideAdPilotPanel() {
-  console.log('[AdPilot] Hiding Grow panel');
-  
   const rightPanel = document.querySelector('[data-panel]:last-child');
   if (!rightPanel) return;
   
@@ -474,29 +366,22 @@ function hideAdPilotPanel() {
   const iframe = rightPanel.querySelector('#adpilot-iframe');
   if (iframe) {
     iframe.remove();
-    console.log('[AdPilot] ✓ Removed iframe from DOM');
   }
   
   // Step 2: Find and REMOVE the tab div entirely
   const tabDiv = rightPanel.querySelector('.absolute.inset-0.z-10.flex.flex-col.bg-background');
-  if (tabDiv) {
-    // Only remove if it contains our iframe (has data-adpilot-active marker)
-    if (tabDiv.hasAttribute('data-adpilot-active')) {
-      tabDiv.remove();
-      console.log('[AdPilot] ✓ Removed tab div from DOM');
-    }
+  if (tabDiv && tabDiv.hasAttribute('data-adpilot-active')) {
+    tabDiv.remove();
   }
   
   // Step 3: Show preview by removing invisible class
   const preview = rightPanel.querySelector('.relative.h-full.w-full');
   if (preview && preview.classList.contains('invisible')) {
     preview.classList.remove('invisible');
-    console.log('[AdPilot] ✓ Restored preview visibility');
   }
   
   // Step 4: Update Grow button to inactive state
   updateActiveButton(true);
-  console.log('[AdPilot] ✅ Grow panel hidden and cleaned up');
 }
 
 // Send project context to iframe
@@ -513,8 +398,6 @@ function sendProjectContext(iframe) {
     },
     timestamp: Date.now()
   };
-  
-  console.log('[AdPilot] Sending project context:', message);
   
   // postMessage to iframe (no origin validation needed - same extension)
   iframe.contentWindow.postMessage(message, '*');
@@ -929,8 +812,6 @@ function checkViewParam() {
   const view = params.get('view');
   
   if (view === 'grow') {
-    console.log('[AdPilot] Detected ?view=grow, showing panel');
-    // Show Grow panel
     deactivateLovableButtons();
     showAdPilotPanel();
     updateActiveButton();
@@ -950,83 +831,55 @@ function checkViewParam() {
 
 // Watch for clicks on other Lovable navigation buttons
 function setupNavigationWatcher() {
-  console.log('[AdPilot] Setting up navigation watcher...');
-  
   // Use event delegation on document to catch all button clicks
   document.addEventListener('click', (e) => {
     const button = e.target.closest('button');
-    if (!button) return;
+    if (!button || button.id === 'adpilot-grow-button') return;
     
-    // Skip if it's our own button
-    if (button.id === 'adpilot-grow-button') return;
-    
-    // Strategy 1: Check if this is a navigation button (Cloud, Code, Analytics, Security, Speed)
+    // Check if this is a navigation button
     const navContainer = findNavigationContainer(true);
     let shouldHideGrow = false;
     
-    if (navContainer) {
-      const isNavButton = navContainer.container.contains(button);
-      if (isNavButton) {
-        console.log('[AdPilot] Lovable navigation button (UL) clicked, hiding Grow');
-        shouldHideGrow = true;
-      }
+    if (navContainer && navContainer.container.contains(button)) {
+      shouldHideGrow = true;
     }
     
-    // Strategy 2: Check if this is the Preview button (outside the UL)
+    // Check if this is the Preview button
     const buttonText = button.textContent?.trim();
     if (buttonText === 'Preview' || buttonText?.includes('Preview')) {
-      console.log('[AdPilot] Preview button clicked, hiding Grow');
       shouldHideGrow = true;
     }
     
     // If any Lovable navigation button was clicked, hide our panel
     if (shouldHideGrow) {
-      // Remove ?view=grow from URL
       const url = new URL(window.location.href);
       url.searchParams.delete('view');
       window.history.replaceState({}, '', url);
-      
-      // Hide our panel and restore Lovable content
       hideAdPilotPanel();
     }
-  }, true); // Use capture phase to catch it early
-  
-  console.log('[AdPilot] Navigation watcher active (including Preview)');
+  }, true);
 }
 
 // Wait for navigation to be ready
 async function waitForNavigation() {
-  console.log('[AdPilot] Waiting for navigation to load...');
-  
   return new Promise((resolve, reject) => {
-    let attempts = 0;
     const maxAttempts = 60; // 60 attempts * 500ms = 30 seconds
+    let attempts = 0;
     
     const timeout = setTimeout(() => {
-      console.error('[AdPilot] ❌ Timeout after 30s waiting for navigation');
-      console.error('[AdPilot] This usually means:');
-      console.error('[AdPilot] 1. Lovable UI structure has changed');
-      console.error('[AdPilot] 2. Page is not fully loaded');
-      console.error('[AdPilot] 3. Not on a Lovable project page');
-      // Call findNavigationContainer one more time with verbose logging for debugging
+      console.error('[AdPilot] ❌ Navigation timeout - Lovable UI may have changed');
       findNavigationContainer(false);
       reject(new Error('Navigation timeout'));
     }, 30000);
     
     const check = setInterval(() => {
       attempts++;
-      
-      // Try to find navigation silently during polling
       const result = findNavigationContainer(true);
       
       if (result) {
         clearInterval(check);
         clearTimeout(timeout);
-        console.log('[AdPilot] ✓ Navigation found after', (attempts * 0.5).toFixed(1), 'seconds');
         resolve();
-      } else if (attempts % 10 === 0) {
-        // Log progress every 5 seconds
-        console.log('[AdPilot] Still waiting...', (attempts * 0.5).toFixed(1), 's elapsed');
       }
     }, 500);
   });
@@ -1035,13 +888,15 @@ async function waitForNavigation() {
 // Initialize extension
 async function initialize() {
   if (!isLovableEditor()) {
-    console.log('[AdPilot] Not a Lovable editor page');
     return;
   }
   
   console.log('[AdPilot] Lovable editor detected, initializing...');
   
   try {
+    // Initialize server URL first (wait for storage)
+    SERVER_URL = await getServerUrl();
+    
     // Wait for navigation to be ready
     await waitForNavigation();
     
@@ -1053,7 +908,6 @@ async function initialize() {
       checkViewParam();
       
       // Watch for view changes (browser back/forward)
-      // Only add listener once
       if (!window._adpilotPopstateRegistered) {
         window.addEventListener('popstate', checkViewParam);
         window._adpilotPopstateRegistered = true;
@@ -1071,12 +925,6 @@ async function initialize() {
     }
   } catch (error) {
     console.error('[AdPilot] ❌ Initialization failed:', error.message);
-    
-    // Provide helpful guidance
-    if (error.message.includes('timeout')) {
-      console.log('[AdPilot] 💡 Tip: Try refreshing the page');
-      console.log('[AdPilot] 💡 Make sure you are on a Lovable project page');
-    }
   }
 }
 
@@ -1258,32 +1106,20 @@ function startImageMonitoring() {
 
 // Handle SPA navigation (Lovable is a React app)
 let lastUrl = location.href;
-let navigationCheckCount = 0;
 
 new MutationObserver(() => {
   const currentUrl = location.href;
   
   if (currentUrl !== lastUrl) {
     lastUrl = currentUrl;
-    console.log('[AdPilot] 🔄 URL changed:', currentUrl);
     
     // Give the page a moment to render
     setTimeout(() => {
-      // Re-inject button if it disappeared
       if (!document.getElementById('adpilot-grow-button')) {
-        console.log('[AdPilot] Button missing after navigation, re-initializing...');
         initialize();
       } else {
-        // Button still exists, just check view parameter
         checkViewParam();
       }
     }, 500);
-  } else {
-    // Even if URL hasn't changed, periodically check if button disappeared
-    navigationCheckCount++;
-    if (navigationCheckCount % 100 === 0 && !document.getElementById('adpilot-grow-button')) {
-      console.log('[AdPilot] Button disappeared, re-initializing...');
-      initialize();
-    }
   }
 }).observe(document, { subtree: true, childList: true });

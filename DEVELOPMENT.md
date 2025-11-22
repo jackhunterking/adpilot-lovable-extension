@@ -45,7 +45,13 @@ npm run dev
 
 ### Environment Variables
 
-Create `.env.local`:
+Copy `.env.example` to `.env.local` and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
+Required environment variables:
 
 ```bash
 # Supabase (Required)
@@ -53,14 +59,42 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...  # Server-only, never expose!
 
-# Meta/Facebook (Required for OAuth)
+# Meta/Facebook (Required for OAuth and Ads API)
 NEXT_PUBLIC_FB_APP_ID=your_facebook_app_id
 FB_APP_SECRET=your_facebook_app_secret
-FB_PIXEL_ID=your_meta_pixel_id  # Optional
+NEXT_PUBLIC_FB_GRAPH_VERSION=v24.0
 
-# Application
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Meta Business Login Config IDs
+NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_SYSTEM=your_system_config_id
+NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_USER=your_user_config_id
+NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID=your_legacy_config_id  # Backward compatibility
+
+# Debug Mode (Optional)
+NEXT_PUBLIC_DEBUG=false  # Set to 'true' for verbose logging
 ```
+
+### Chrome Extension Server Configuration
+
+The extension can connect to different server environments. By default:
+- **Packaged extensions** → Production (`www.adpilot.studio`)
+- **Unpacked extensions** → Staging (`staging.adpilot.studio`)
+
+**Override server environment:**
+
+Open Chrome DevTools console on any Lovable project page and run:
+
+```javascript
+// Use localhost (development)
+chrome.storage.local.set({adpilot_server: 'dev'})
+
+// Use staging
+chrome.storage.local.set({adpilot_server: 'staging'})
+
+// Use production
+chrome.storage.local.set({adpilot_server: 'prod'})
+```
+
+Then reload the page for changes to take effect.
 
 ### Facebook App Setup
 
