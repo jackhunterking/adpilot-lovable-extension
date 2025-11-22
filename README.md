@@ -18,10 +18,14 @@ This Chrome extension adds a "Grow" tab to the Lovable editor, providing direct 
 
 ### For Users
 
-1. Install from [Chrome Web Store](#) (coming soon)
-2. Navigate to any Lovable project at `lovable.dev/projects/*`
-3. Click the "Grow" tab that appears in the navigation
-4. Sign in to AdPilot and start creating ads
+**Installation:**
+1. Visit the [extension landing page](https://adpilot.studio) (or visit this repo's root URL when running locally)
+2. Click "Download Chrome Extension" and install from [Chrome Web Store](#) (coming soon)
+3. Navigate to any Lovable project at `lovable.dev/projects/*`
+4. Click the "Grow" tab that appears in the navigation
+5. Sign in to AdPilot and start creating ads
+
+**Note:** This is a Chrome extension for Lovable only. There is no standalone website - all functionality is accessed through the extension within Lovable projects.
 
 ### For Developers
 
@@ -149,9 +153,10 @@ adpilot-lovable-extension/
 ├── content/               # Content scripts injected into Lovable
 │   ├── inject.js          # Main injection script
 │   └── styles.css         # Extension styles
-├── app/                   # Next.js application (iframe content)
-│   ├── lovable/          # All Lovable extension pages
-│   │   ├── page.tsx      # Dashboard with feature grid
+├── app/                   # Next.js application
+│   ├── page.tsx          # Extension download landing page (root URL)
+│   ├── lovable/          # All Lovable extension pages (iframe content)
+│   │   ├── page.tsx      # Workspace dashboard
 │   │   ├── create-ad/    # Image generation page
 │   │   ├── copy/         # Copy generation page
 │   │   ├── targeting/    # Audience targeting page
@@ -165,7 +170,9 @@ adpilot-lovable-extension/
 │   ├── lovable/          # Lovable-specific components
 │   │   ├── lovable-navigation.tsx
 │   │   ├── lovable-layout.tsx
+│   │   ├── auth-blocker.tsx
 │   │   └── feature-card.tsx
+│   ├── ad-builder/       # Ad creation components
 │   └── ui/               # shadcn/ui components
 ├── lib/                  # Business logic
 │   ├── ai/              # AI service integrations
@@ -179,20 +186,34 @@ adpilot-lovable-extension/
 
 ## 🏗️ Architecture
 
+### User Journey Overview
+
+**For New Users:**
+1. Visit root URL (`/`) → See extension download landing page
+2. Install Chrome extension from Chrome Web Store
+3. Open any Lovable project → "Grow" button appears
+4. Click "Grow" → Iframe opens with authentication required
+5. Sign in with Google → Access workspace
+
+**Note:** Root URL (`/`) = Extension landing page | `/lovable` route = Iframe content (auth required)
+
+### Technical Architecture
+
 The extension follows a microservices architecture with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Lovable Editor (lovable.dev)                 │
 │  ┌────────────────────────────────────────────────────────┐     │
-│  │  Navigation: [Cloud] [Database] [Speed] [Ads] ◄──┐    │     │
+│  │  Navigation: [Cloud] [Database] [Speed] [Grow] ◄──┐   │     │
 │  └──────────────────────────────────────────────┬──────┘  │     │
 │                                                 │         │     │
 │  ┌──────────────────────────────────────────────┼─────────┼────┐│
 │  │  Right Panel: AdPilot iframe                 │         │    ││
 │  │  ┌───────────────────────────────────────────┼────────┐│    ││
-│  │  │  Next.js App (localhost:3000)             │        ││    ││
-│  │  │  - Dashboard, Campaign builder, Analytics │        ││    ││
+│  │  │  Next.js App (localhost:3000/lovable)     │        ││    ││
+│  │  │  - Auth required (Google OAuth)           │        ││    ││
+│  │  │  - Workspace, Campaign builder, Analytics │        ││    ││
 │  │  └───────────────────────────────────────────┘        ││    ││
 │  └─────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
@@ -202,10 +223,10 @@ The extension follows a microservices architecture with clear separation of conc
         │                           ▼
 ┌───────┴───────────────────────────────────────────────────┐
 │  Content Script (content/inject.js)                       │
-│  - Inject "Ads" button                                    │
+│  - Inject "Grow" button                                   │
 │  - Manage iframe panel                                    │
 │  - Extract project context                                │
-│  - Handle URL routing (?view=ads)                         │
+│  - Handle URL routing (?view=grow)                        │
 └───────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -221,7 +242,7 @@ The extension follows a microservices architecture with clear separation of conc
 │  Supabase Backend                                         │
 │  - PostgreSQL database (campaigns, ads, meta_connections) │
 │  - Storage (generated-images bucket)                      │
-│  - Auth (Google OAuth, email/password)                    │
+│  - Auth (Google OAuth)                                    │
 │  - RLS policies (multi-tenant security)                   │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -230,13 +251,14 @@ The extension follows a microservices architecture with clear separation of conc
 
 **Content Script** (`content/inject.js`):
 - Uses evidence-based DOM discovery to find Lovable's navigation
-- Injects "Ads" tab matching Lovable's UI exactly
-- Manages iframe panel visibility based on URL (`?view=ads`)
+- Injects "Grow" tab matching Lovable's UI exactly
+- Manages iframe panel visibility based on URL (`?view=grow`)
 - Handles SPA navigation with MutationObserver
 - Extracts and shares project context via postMessage
 
 **Next.js App** (iframe at `localhost:3000/lovable`):
-- Feature-based dashboard with 6 marketing tools
+- Extension landing page at root (`/`) for installation instructions
+- Workspace dashboard with authentication required
 - Direct UI pages (no chat interface)
 - Real-time metrics and analytics
 - Meta OAuth integration
@@ -257,12 +279,14 @@ The extension follows a microservices architecture with clear separation of conc
 
 ### Communication Flow
 
-1. User clicks "Ads" tab → Content script intercepts
-2. Content script updates URL: `?view=ads`
+1. User clicks "Grow" tab → Content script intercepts
+2. Content script updates URL: `?view=grow`
 3. Content script shows iframe, hides Lovable's panel
-4. Iframe loads → Content script sends project context via postMessage
-5. Next.js app receives context, fetches user's campaigns from Supabase
-6. User creates ad → Saved to Supabase with RLS protection
+4. Iframe loads `/lovable` route → Auth check occurs
+5. If not authenticated → Shows auth modal, user signs in with Google
+6. After auth → Content script sends project context via postMessage
+7. Next.js app receives context, fetches user's campaigns from Supabase
+8. User creates ad → Saved to Supabase with RLS protection
 
 For detailed architecture documentation, see `CURSOR_RULES.md`.
 
@@ -316,6 +340,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete developer guide: setup, testing, deployment
 - **[CURSOR_RULES.md](CURSOR_RULES.md)** - AI assistant reference: Chrome extensions, Lovable integration, best practices
+- **[LOVABLE_EXTENSION_USER_JOURNEY_TEST.md](LOVABLE_EXTENSION_USER_JOURNEY_TEST.md)** - User journey testing guide and checklist
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ## 📧 Support

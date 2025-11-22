@@ -6,12 +6,10 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { COMPANY_NAME } from '@/lib/constants'
+import { COMPANY_NAME, CHROME_STORE_URL } from '@/lib/constants'
 import { Chrome, Check, Sparkles } from 'lucide-react'
 
 export default function ExtensionDownloadPage() {
-  // TODO: Replace with actual Chrome Web Store URL when published
-  const CHROME_STORE_URL = 'https://chrome.google.com/webstore' // Placeholder
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
