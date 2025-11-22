@@ -96,14 +96,29 @@ export async function GET(request: NextRequest) {
       
       return response
     } else {
-      console.error('[OAUTH-CALLBACK] Code exchange failed', { error: error.message })
+      console.error('[OAUTH-CALLBACK] Code exchange failed', { 
+        error: error.message,
+        errorCode: error.code,
+        status: error.status
+      })
     }
   } else {
     console.error('[OAUTH-CALLBACK] No code provided in callback')
   }
 
-  console.log('[OAUTH-CALLBACK] Redirecting to error page')
-  const errorResponse = NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // FIXED: Always redirect to popup-success even on error
+  // This ensures popup closes gracefully and notifies parent (Lovable iframe)
+  console.log('[OAUTH-CALLBACK] Auth failed, redirecting to popup-success with error')
+  
+  const currentUrl = new URL(request.url)
+  const host = request.headers.get('host') ?? currentUrl.host
+  const proto = request.headers.get('x-forwarded-proto') ?? currentUrl.protocol.replace(':', '')
+  const originForRedirect = `${proto}://${host}`
+  
+  // Redirect to popup-success with error indicator
+  const errorResponse = NextResponse.redirect(
+    `${originForRedirect}/auth/popup-success?error=true&next=${encodeURIComponent(next)}`
+  )
   cookiesToSet.forEach(({ name, value, options }) => errorResponse.cookies.set(name, value, options))
   return errorResponse
 }

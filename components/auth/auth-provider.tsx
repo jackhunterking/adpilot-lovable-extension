@@ -202,6 +202,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         })
+      } else if (event.data.type === 'OAUTH_ERROR') {
+        console.error('[AUTH-PROVIDER] OAuth popup failed', event.data.error)
+        // Popup closed gracefully with error - user stays in Lovable
+        // Could show a toast notification here in the future
       }
     }
     
