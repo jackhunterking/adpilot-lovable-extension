@@ -109,6 +109,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userEmail: session?.user?.email
         })
         
+        // If we're in a popup (opened by parent), notify and close
+        if (typeof window !== 'undefined' && window.opener && !window.opener.closed) {
+          console.log('[AUTH-PROVIDER] In popup window, notifying parent')
+          
+          try {
+            if (session) {
+              // Success: notify parent and close
+              window.opener.postMessage(
+                { type: 'OAUTH_SUCCESS' },
+                window.location.origin
+              )
+            } else {
+              // No session: notify parent of error and close
+              window.opener.postMessage(
+                { type: 'OAUTH_ERROR', error: 'No session established' },
+                window.location.origin
+              )
+            }
+            
+            // Give postMessage time to send, then close
+            setTimeout(() => {
+              console.log('[AUTH-PROVIDER] Closing popup')
+              window.close()
+            }, 100)
+            
+            return // Don't continue initialization in popup
+          } catch (err) {
+            console.error('[AUTH-PROVIDER] Error communicating with parent:', err)
+          }
+        }
+        
+        // Continue normal initialization for parent window
         setSession(session)
         setUser(session?.user ?? null)
         
@@ -165,8 +197,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // NOTE: No message listener needed - Supabase automatically updates session
-  // when OAuth popup completes. The onAuthStateChange listener above handles it.
+  // Listen for OAuth popup completion
+  useEffect(() => {
+    const handleOAuthMessage = (event: MessageEvent) => {
+      // Security: Only accept messages from our own origin
+      if (event.origin !== window.location.origin) {
+        return
+      }
+      
+      if (event.data.type === 'OAUTH_SUCCESS') {
+        console.log('[AUTH-PROVIDER] OAuth popup succeeded, refreshing session')
+        
+        // Refresh session in parent window
+        supabase.auth.refreshSession().then(({ data, error }) => {
+          if (error) {
+            console.error('[AUTH-PROVIDER] Error refreshing session after popup:', error)
+          } else {
+            console.log('[AUTH-PROVIDER] Session refreshed successfully after popup')
+            setSession(data.session)
+            setUser(data.session?.user ?? null)
+            
+            if (data.session?.user) {
+              fetchProfile(data.session.user.id)
+            }
+          }
+        })
+      } else if (event.data.type === 'OAUTH_ERROR') {
+        console.error('[AUTH-PROVIDER] OAuth popup failed:', event.data.error)
+        // UI remains in unauthenticated state - user can retry
+      }
+    }
+    
+    window.addEventListener('message', handleOAuthMessage)
+    return () => window.removeEventListener('message', handleOAuthMessage)
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
