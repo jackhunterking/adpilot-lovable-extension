@@ -52,9 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()  // Changed from .single() - allows 0 or 1 rows
 
       if (error) throw error
+      
+      // If no profile exists, it will be created on first API call
+      if (!data) {
+        console.log('[AUTH-PROVIDER] No profile found, will be created on first API call')
+        setProfile(null)
+        return
+      }
+      
       setProfile(data)
     } catch (error) {
       console.error('Error fetching profile:', error)

@@ -340,9 +340,21 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📚 Documentation
 
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete developer guide: setup, testing, deployment, troubleshooting
-- **[CURSOR_RULES.md](CURSOR_RULES.md)** - AI assistant reference: Chrome extensions, Lovable integration, Supabase patterns, best practices
+### Essential Docs (Start Here)
+
+- **[AUTHENTICATION.md](AUTHENTICATION.md)** - How authentication works: OAuth popup flow, session management, troubleshooting
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide: staging, production, Chrome Web Store submission
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+
+### Reference Docs
+
+- **[CHROME_WEB_STORE_SUBMISSION.md](CHROME_WEB_STORE_SUBMISSION.md)** - Detailed Chrome Web Store submission guide
+- **[SUPABASE_SECURITY_AUDIT.md](SUPABASE_SECURITY_AUDIT.md)** - Database security audit and RLS policies
+- **[INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)** - Emergency procedures and rollback plans
+
+### Development
+
+For AI assistance and development patterns, see `.cursorrules` file in the project root.
 
 ## 📧 Support
 
