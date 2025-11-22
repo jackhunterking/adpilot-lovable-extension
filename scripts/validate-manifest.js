@@ -1,14 +1,22 @@
 #!/usr/bin/env node
 /**
  * Validate manifest.json for Chrome Web Store submission
+ * Usage: node validate-manifest.js [path/to/manifest.json]
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const manifestPath = path.join(__dirname, '..', 'manifest.json');
+// Accept manifest path as argument or use default
+const manifestPath = process.argv[2] || path.join(__dirname, '..', 'manifest.json');
+const isProduction = manifestPath.includes('production') || process.argv.includes('--production');
 
-console.log('🔍 Validating manifest.json...\n');
+console.log('🔍 Validating manifest...');
+console.log('📄 Path:', manifestPath);
+if (isProduction) {
+  console.log('🏭 Mode: Production (strict checks enabled)');
+}
+console.log('');
 
 try {
   // Read and parse manifest
@@ -81,6 +89,47 @@ try {
   
   if (manifest.permissions && manifest.permissions.length > 5) {
     warnings.push('Large number of permissions may raise review flags');
+  }
+  
+  // Production-specific checks
+  if (isProduction) {
+    console.log('🔒 Running production-readiness checks...\n');
+    
+    // Check for development URLs
+    const manifestStr = JSON.stringify(manifest);
+    if (manifestStr.includes('localhost')) {
+      errors.push('Production manifest should not contain localhost URLs');
+    }
+    if (manifestStr.includes('127.0.0.1')) {
+      errors.push('Production manifest should not contain 127.0.0.1 URLs');
+    }
+    if (manifestStr.includes('staging')) {
+      warnings.push('Production manifest contains staging URLs');
+    }
+    
+    // Check version format
+    const versionMatch = manifest.version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+    if (!versionMatch) {
+      errors.push('Version must follow semantic versioning (e.g., 1.0.0)');
+    }
+    
+    // Check that we're at least version 1.0.0 for production
+    if (versionMatch) {
+      const major = parseInt(versionMatch[1]);
+      if (major === 0) {
+        warnings.push('Consider using version 1.0.0+ for production release');
+      }
+    }
+    
+    // Check description length (Chrome Web Store requires 132 chars minimum for featured listings)
+    if (manifest.description.length < 50) {
+      warnings.push('Description is quite short - consider adding more detail');
+    }
+    
+    // Check for homepage_url
+    if (!manifest.homepage_url || manifest.homepage_url.includes('localhost')) {
+      errors.push('Production manifest must have a valid homepage_url');
+    }
   }
   
   // Print results

@@ -300,24 +300,28 @@ function createIframe() {
   iframe.src = SERVER_URL; // Use the configured server URL (prod/staging/dev)
   iframe.className = 'w-full h-full flex-1';
   iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
-  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation');
+  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
   iframe.setAttribute('data-adpilot', 'true');
   iframe.allow = 'clipboard-write';
   
   // Add error handler
   iframe.addEventListener('error', (e) => {
     console.error('[AdPilot] ❌ Iframe failed to load:', e);
-    console.error(`[AdPilot] URL: ${DEV_SERVER_URL}`);
-    console.error('[AdPilot] Make sure dev server is running: npm run dev');
+    console.error(`[AdPilot] URL: ${SERVER_URL}`);
+    if (SERVER_URL === DEV_SERVER_URL) {
+      console.error('[AdPilot] Make sure dev server is running: npm run dev');
+    } else {
+      console.error('[AdPilot] Check that the server is accessible and headers are configured correctly');
+    }
   });
   
   // Add load handler
   iframe.addEventListener('load', () => {
-    console.log('[AdPilot] ✅ Iframe loaded from', DEV_SERVER_URL);
+    console.log('[AdPilot] ✅ Iframe loaded from', SERVER_URL);
     sendProjectContext(iframe);
   });
   
-  console.log('[AdPilot] Created iframe with src:', DEV_SERVER_URL);
+  console.log('[AdPilot] Created iframe with src:', SERVER_URL);
   return iframe;
 }
 
@@ -326,14 +330,58 @@ const PROD_SERVER_URL = 'https://www.adpilot.studio/lovable';
 const STAGING_SERVER_URL = 'https://staging.adpilot.studio/lovable';
 const DEV_SERVER_URL = 'http://localhost:3000/lovable';
 
-// Auto-detect environment and select appropriate URL
+// Smart environment detection
 function getServerUrl() {
-  // Use staging for development/testing
+  // Strategy 1: Check if running as packaged extension (production)
+  // Packaged extensions have update_url in manifest
+  const manifest = chrome.runtime.getManifest();
+  if (manifest.update_url) {
+    console.log('[AdPilot] Detected packaged extension - using PRODUCTION');
+    return PROD_SERVER_URL;
+  }
+  
+  // Strategy 2: Check for environment override in extension storage
+  // This is async, so we'll handle it separately below
+  // For now, return staging as default for unpacked extension
+  console.log('[AdPilot] Detected unpacked extension - using STAGING (override via storage if needed)');
   return STAGING_SERVER_URL;
 }
 
-const SERVER_URL = getServerUrl();
-console.log('[AdPilot] Using server URL:', SERVER_URL);
+// Initialize SERVER_URL with smart detection
+let SERVER_URL = getServerUrl();
+
+// Strategy 3: Check for developer override in storage (async)
+chrome.storage.local.get(['adpilot_env'], (result) => {
+  if (result.adpilot_env) {
+    const previousUrl = SERVER_URL;
+    
+    switch (result.adpilot_env) {
+      case 'production':
+      case 'prod':
+        SERVER_URL = PROD_SERVER_URL;
+        break;
+      case 'staging':
+        SERVER_URL = STAGING_SERVER_URL;
+        break;
+      case 'development':
+      case 'dev':
+        SERVER_URL = DEV_SERVER_URL;
+        break;
+    }
+    
+    if (SERVER_URL !== previousUrl) {
+      console.log('[AdPilot] Environment override applied:', result.adpilot_env);
+      console.log('[AdPilot] Using server URL:', SERVER_URL);
+      console.log('[AdPilot] 💡 To change: chrome.storage.local.set({adpilot_env: "dev|staging|prod"})');
+    }
+  }
+});
+
+console.log('[AdPilot] Initial server URL:', SERVER_URL);
+console.log('[AdPilot] 💡 Developers: Override environment in console:');
+console.log('[AdPilot]    chrome.storage.local.set({adpilot_env: "dev"}) for localhost');
+console.log('[AdPilot]    chrome.storage.local.set({adpilot_env: "staging"}) for staging');
+console.log('[AdPilot]    chrome.storage.local.set({adpilot_env: "prod"}) for production');
 
 // Check if development server is running (only for localhost)
 async function checkLocalServerRunning() {
@@ -477,6 +525,25 @@ let imageMonitorActive = false;
 
 // Listen for messages from iframe
 window.addEventListener('message', (event) => {
+  // Strict origin validation for production security
+  const allowedOrigins = [
+    'https://www.adpilot.studio',
+    'https://staging.adpilot.studio',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+  ];
+  
+  // Validate origin
+  const isAllowedOrigin = allowedOrigins.some(origin => event.origin.startsWith(origin));
+  
+  if (!isAllowedOrigin) {
+    // Only warn if it's an AdPilot message from unauthorized origin
+    if (event.data && event.data.type && event.data.type.startsWith('ADPILOT_')) {
+      console.warn('[AdPilot] ⚠️  Rejected message from unauthorized origin:', event.origin);
+    }
+    return;
+  }
+  
   // Accept messages from our iframe
   if (event.data && event.data.type && event.data.type.startsWith('ADPILOT_')) {
     console.log('[AdPilot] Received message from iframe:', event.data.type);

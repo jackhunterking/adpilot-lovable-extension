@@ -17,9 +17,7 @@
     "https://lovable.dev/*",
     "https://*.lovable.dev/*",
     "https://*.supabase.co/*",
-    "https://www.adpilot.studio/*",
-    "https://staging.adpilot.studio/*",
-    "http://localhost:*/*"
+    "https://www.adpilot.studio/*"
   ],
   "content_scripts": [
     {

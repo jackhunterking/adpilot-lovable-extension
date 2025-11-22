@@ -110,6 +110,76 @@ TO authenticated
 USING (auth.uid() = user_id);
 ```
 
+**Storage Buckets Setup:**
+
+The extension requires two storage buckets for image management:
+
+1. **`ad-context-images`** - Temporary storage for user-uploaded reference images
+2. **`ad-creatives`** - Permanent storage for generated/imported ad images
+
+**Quick Setup Script:**
+
+Run this in Supabase SQL Editor:
+
+```sql
+-- Create ad-context-images bucket
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('ad-context-images', 'ad-context-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Create ad-creatives bucket
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('ad-creatives', 'ad-creatives', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- RLS for ad-context-images
+CREATE POLICY "Users upload context images" ON storage.objects 
+FOR INSERT WITH CHECK (
+  bucket_id = 'ad-context-images' 
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+CREATE POLICY "Users read context images" ON storage.objects 
+FOR SELECT USING (
+  bucket_id = 'ad-context-images'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+CREATE POLICY "Users delete context images" ON storage.objects 
+FOR DELETE USING (
+  bucket_id = 'ad-context-images'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- RLS for ad-creatives
+CREATE POLICY "Auth users upload creatives" ON storage.objects 
+FOR INSERT WITH CHECK (
+  bucket_id = 'ad-creatives'
+  AND auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Public read creatives" ON storage.objects 
+FOR SELECT USING (bucket_id = 'ad-creatives');
+
+CREATE POLICY "Users delete creatives" ON storage.objects 
+FOR DELETE USING (
+  bucket_id = 'ad-creatives'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+```
+
+**Verify Setup:**
+
+```bash
+# Check storage buckets exist
+mcp_supabase_execute_sql \
+  --project_id YOUR_PROJECT_ID \
+  --query "SELECT * FROM storage.buckets WHERE id IN ('ad-context-images', 'ad-creatives')"
+
+# Check RLS policies
+mcp_supabase_get_advisors --project_id YOUR_PROJECT_ID --type security
+```
+
 ## Development Workflow
 
 ### Making Changes
@@ -217,17 +287,60 @@ function injectAdsTab() {
 [AdPilot] Ads tab injected successfully
 ```
 
-### Testing Checklist
+### Comprehensive Testing Checklist
 
-- [ ] Extension loads without errors
-- [ ] Tab appears on Lovable
-- [ ] Clicking tab opens panel
-- [ ] Project context detected
-- [ ] Iframe loads correctly
-- [ ] postMessage works
-- [ ] No console errors
+#### Root URL Landing Page (`/`)
+- [ ] Page loads without errors
+- [ ] Extension download CTA is visible and prominent
+- [ ] Installation instructions are clear (3 numbered steps)
+- [ ] Features grid displays correctly
+- [ ] No sign in/sign up buttons visible
+- [ ] Footer links work (Privacy, Terms)
+- [ ] Responsive design works on mobile/tablet/desktop
+- [ ] Logo and branding display correctly
+
+#### Extension Integration (Chrome Extension)
+- [ ] Extension installs without errors
+- [ ] "Grow" button appears in Lovable navigation
+- [ ] Button styling matches Lovable's native buttons
+- [ ] Click "Grow" button → iframe opens
+- [ ] URL updates to `?view=grow`
+- [ ] Iframe loads `/lovable` route
+- [ ] Project context is sent to iframe via postMessage
 - [ ] Works after navigation (SPA)
 - [ ] Browser back/forward works
+
+#### Authentication Flow (`/lovable` route - unauthenticated)
+- [ ] Auth blocker appears immediately (no flash of content)
+- [ ] Google sign-in button is prominent
+- [ ] Click "Sign in with Google" → OAuth popup opens
+- [ ] After successful auth → redirects back to workspace
+- [ ] Auth state persists on page refresh
+- [ ] No homepage elements leak into iframe view
+
+#### Workspace Overview (`/lovable` route - authenticated)
+- [ ] Loading state shows briefly
+- [ ] Navigation tabs appear (Ads, Analytics, Campaigns)
+- [ ] Default tab is "Ads" (workspace overview)
+- [ ] Empty state shows if no ads exist
+- [ ] "Create New Ad" button works
+- [ ] Tab navigation works without page reload
+- [ ] Campaign auto-creation works on first visit
+
+#### Feature Pages
+- [ ] Create Ad: Image generation works
+- [ ] Ad Copy: Copy generation works
+- [ ] Targeting: Location search works
+- [ ] Budget: Budget calculation works
+- [ ] Campaigns: CRUD operations work
+- [ ] Analytics: Metrics display correctly
+
+#### Meta Connection Flow (if applicable)
+- [ ] If Meta not connected, shows Meta auth blocker
+- [ ] Meta connection modal appears
+- [ ] Can connect Facebook account
+- [ ] Can select business assets
+- [ ] After connection, proceeds to workspace
 
 ### Backend Testing
 
@@ -428,60 +541,200 @@ npm run package
 - $5 developer registration fee (one-time)
 - Valid payment method
 - Privacy policy URL
+- Extension thoroughly tested locally
+- Production environment variables configured
 
-**Steps:**
+**Step 1: Prepare Assets**
+
+**Screenshots (Required):**
+- Small tile: 440×280 pixels
+- Marquee tile: 1400×560 pixels (optional but recommended)
+- Screenshots: 1280×800 or 640×400 pixels (minimum 1, maximum 5)
+
+**Recommended screenshots:**
+1. Extension button in Lovable navigation
+2. Auth/Sign-in screen
+3. Workspace dashboard with ads
+4. Ad builder interface
+5. Analytics dashboard
+
+**Promotional Images:**
+- Icon: 128×128 pixels (already exists in `assets/icon-128.png`)
+- Small promotional tile: 440×280 pixels
+- Large promotional tile: 920×680 pixels (optional)
+- Marquee promotional tile: 1400×560 pixels (optional)
+
+**Privacy Policy & Terms:**
+- Ensure `https://yourdomain.com/privacy` is accessible
+- Ensure `https://yourdomain.com/terms` is accessible
+- Both are referenced in the manifest and required by Chrome Web Store
+
+**Step 2: Update Configuration**
+
+**Update Production URLs:**
+
+Edit `content/inject.js`:
+```javascript
+// Change from:
+const PROD_SERVER_URL = 'https://www.adpilot.studio/lovable';
+
+// To your actual production URL:
+const PROD_SERVER_URL = 'https://yourdomain.com/lovable';
+```
+
+**Update Chrome Store URL:**
+
+After your extension is published, update `lib/constants.ts`:
+```typescript
+// Change from:
+export const CHROME_STORE_URL = 'https://chrome.google.com/webstore'
+
+// To your extension's store page:
+export const CHROME_STORE_URL = 'https://chrome.google.com/webstore/detail/adpilot-for-lovable/YOUR_EXTENSION_ID'
+```
+
+Your extension ID will be provided after first upload.
+
+**Verify Manifest:**
+- [ ] Version number is correct
+- [ ] Name and description are finalized
+- [ ] Host permissions include production URLs
+- [ ] Web accessible resources are correct
+- [ ] Icons are present and correct sizes
+
+**Step 3: Package Extension**
+
+```bash
+npm run package
+```
+
+This creates `extension.zip` ready for upload. The script:
+1. Validates manifest.json
+2. Includes only necessary files
+3. Excludes development files (.env, node_modules, etc.)
+4. Creates optimized production build
+
+**Step 4: Create Developer Account**
 
 1. Go to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
-2. Sign in and pay registration fee
-3. Click "New Item"
-4. Upload .zip file
-5. Fill store listing:
-   - Name: AdPilot for Lovable
-   - Summary: Create Meta ads directly in Lovable (max 132 chars)
-   - Description: (see below)
-   - Category: Productivity
-   - Screenshots: At least 1 (1280×800 or 640×400)
-   - Small tile: 440×280
-   - Icons: Already included in package
-6. Set pricing: Free
-7. Select regions: All regions
-8. Add privacy practices disclosure
-9. Submit for review
+2. Sign in with your Google account
+3. Pay the one-time $5 developer registration fee
+4. Accept the developer agreement
 
-**Description Template:**
+**Step 5: Upload Extension**
+
+1. Click "New Item" in the developer dashboard
+2. Upload the `extension.zip` file
+3. Wait for upload and automated checks to complete
+
+**Step 6: Fill Out Store Listing**
+
+**Product details:**
+- **Name**: AdPilot for Lovable
+- **Summary**: AI-powered Meta advertising directly in Lovable editor
+- **Description**: Use the template below
+- **Category**: Productivity
+- **Language**: English (add others if supported)
+
+**Detailed Description Template:**
 
 ```
-Turn your Lovable project into a business with AdPilot.
+Create and manage Facebook & Instagram ad campaigns directly from your Lovable editor with AI-powered features.
 
-Create and manage Facebook & Instagram ads directly in Lovable - no need to leave your editor.
+🎯 KEY FEATURES:
+• AI-powered ad image generation (dual format: square + vertical)
+• AI-powered ad copy writing with multiple tones
+• Advanced audience targeting with visual map
+• Budget management and scheduling
+• Real-time analytics and performance tracking
+• Seamless Meta (Facebook/Instagram) integration
 
-✅ NATIVE LOVABLE INTEGRATION
-• Adds an "Ads" tab to your Lovable editor
-• Matches Lovable's UI perfectly
-• Feels like it's part of Lovable
+✨ HOW IT WORKS:
+1. Install the extension
+2. Open any Lovable project
+3. Click the "Grow" tab in navigation
+4. Sign in and connect your Meta account
+5. Start creating high-performing ads with AI
 
-✅ AI-POWERED AD CREATION
-• Use Lovable's AI to generate ad images
-• AI-written ad copy optimized for Meta
-• Smart targeting recommendations
+💡 PERFECT FOR:
+• Lovable developers launching products
+• SaaS founders driving user acquisition
+• Local businesses expanding reach
+• E-commerce stores boosting sales
 
-✅ FULL CAMPAIGN MANAGEMENT
-• Create campaigns in minutes
-• Track performance in real-time
-• Manage multiple ads from one place
+🔒 SECURE & PRIVATE:
+• Minimal permissions (only storage and tabs)
+• No data collection or tracking
+• Secure OAuth authentication
+• Row-level security for multi-tenant isolation
 
-PERFECT FOR
-• Lovable builders launching products
-• Solo founders testing ideas
-• Agencies managing client projects
+🆓 PRICING:
+• Free to install and use
+• Pay only for actual Meta ad spend (standard Meta rates)
+• No hidden fees or subscriptions
 
-GET STARTED IN 3 MINUTES
-1. Install extension
-2. Connect your Meta account
-3. Create your first ad
+📚 DOCUMENTATION:
+Visit https://docs.adpilot.com for guides and tutorials
 
-No marketing experience required.
+Need help? Contact support@adpilot.com
 ```
+
+**Privacy:**
+- **Single purpose**: Creating and managing Meta advertisements
+- **Permission justification**: 
+  - `storage`: Save user preferences and session data
+  - `tabs`: Detect when user is on Lovable projects
+  - Host permissions: Load extension UI and communicate with backend
+- **Privacy policy**: https://yourdomain.com/privacy
+- **Terms of service**: https://yourdomain.com/terms
+
+**Screenshots & Media:**
+1. Upload all prepared screenshots
+2. Add promotional tiles
+3. Provide a short promotional video (optional but recommended)
+
+**Distribution:**
+- **Visibility**: Public
+- **Regions**: All regions (or select specific countries)
+- **Pricing**: Free
+
+**Step 7: Submit for Review**
+
+1. Review all information for accuracy
+2. Click "Submit for Review"
+3. Wait for Chrome Web Store review (typically 1-3 business days)
+4. Monitor your email for review status updates
+
+**Common Review Issues:**
+
+**Permissions Issues:**
+- Justify each permission clearly
+- Remove unnecessary permissions if flagged
+- Provide detailed use case for each permission
+
+**Privacy Issues:**
+- Ensure privacy policy is comprehensive
+- Disclose all data collection (even if minimal)
+- Explain how user data is used
+
+**Functionality Issues:**
+- Ensure extension works without errors
+- Test on fresh Chrome installation
+- Verify all features are functional
+
+**Step 8: Post-Approval Steps**
+
+Once approved, you'll receive your extension ID. Update these files:
+
+**1. `lib/constants.ts`:**
+```typescript
+export const CHROME_STORE_URL = 'https://chrome.google.com/webstore/detail/adpilot-for-lovable/YOUR_EXTENSION_ID'
+export const EXTENSION_ID = 'YOUR_EXTENSION_ID'
+```
+
+**2. Redeploy production app** with updated constants
+
+**3. Update README.md** with actual Chrome Web Store link
 
 **Review Timeline:** 1-3 business days
 
@@ -612,6 +865,137 @@ Users automatically get updates when approved.
 - **Check:** Missing indexes, inefficient queries
 - **Solution:** Run performance advisor
 - **Optimize:** Add indexes, use proper joins
+
+## Architecture Overview
+
+### Architecture Principles
+
+1. **Feature-Based**: Each marketing capability has its own dedicated page
+2. **No Chat Interface**: Direct UI interactions instead of conversational AI
+3. **Lovable-Only**: Focused exclusively on Lovable editor integration
+4. **Service-Driven**: Direct API calls using custom hooks
+5. **Context-Based State**: React Context for state management
+
+### Core Features
+
+1. **Dashboard** (`/lovable/page.tsx`) - Feature grid with 6 marketing tools
+2. **Create Ad** (`/lovable/create-ad/page.tsx`) - AI-powered dual-format image generation
+3. **Ad Copy** (`/lovable/copy/page.tsx`) - AI copy generation with multiple variations
+4. **Targeting** (`/lovable/targeting/page.tsx`) - Location search and selection
+5. **Budget & Schedule** (`/lovable/budget/page.tsx`) - Daily vs lifetime budget
+6. **Campaigns** (`/lovable/campaigns/page.tsx`) - Campaign list view
+7. **Analytics** (`/lovable/analytics/page.tsx`) - Performance metrics dashboard
+
+### Technical Stack
+
+**Frontend:**
+- Next.js 14+ (App Router)
+- React 18+ (Server and Client Components)
+- TypeScript (Full type safety)
+- Tailwind CSS (Styling)
+- shadcn/ui (Component library)
+
+**Backend:**
+- Supabase (PostgreSQL database, Auth, Storage)
+- Meta API (Facebook/Instagram ads integration)
+- AI Services (Image and copy generation)
+
+**Extension:**
+- Manifest V3 (Chrome extension)
+- Content Script (DOM injection)
+- Service Worker (Minimal background processing)
+
+### Component Structure
+
+```
+components/
+├── lovable/
+│   ├── lovable-navigation.tsx    # Tab navigation
+│   ├── lovable-layout.tsx        # Shared layout with auth
+│   ├── feature-card.tsx          # Dashboard feature cards
+│   └── progress-stepper.tsx      # Multi-step indicators
+├── ui/                           # shadcn/ui components
+└── [feature-specific]/           # Components for each feature
+```
+
+### Service Hooks
+
+```
+lib/hooks/
+├── use-location-search.ts        # Location targeting
+├── use-image-generation.ts       # AI image generation
+├── use-copy-generation.ts       # AI copy generation
+├── use-campaign-operations.ts   # Campaign CRUD
+└── use-meta-metrics.ts          # Analytics data
+```
+
+### Navigation Flow
+
+1. User opens Lovable project
+2. Extension injects "Grow" tab
+3. Click opens iframe at `/lovable` (dashboard)
+4. Dashboard shows 6 feature cards
+5. Click card navigates to feature page
+6. Navigation tabs persist across pages
+
+### Authentication Flow
+
+1. Check Google Auth (via Supabase)
+2. Create/load campaign for Lovable project
+3. Check Meta connection (if required by page)
+4. Show feature page when ready
+
+## Quick Reference
+
+### Chrome Store URL Configuration
+
+**Single Location to Update After Publishing:**
+
+When your Chrome extension is approved, update **ONLY THIS FILE**:
+
+**`lib/constants.ts`**
+
+```typescript
+// Update this constant with your extension's store URL
+export const CHROME_STORE_URL = 'https://chrome.google.com/webstore/detail/adpilot-for-lovable/YOUR_EXTENSION_ID'
+```
+
+**That's it!** This constant is automatically used in:
+- Landing page (`app/page.tsx`) - Download button
+- Documentation files
+- Any other references across the app
+
+**Publishing Workflow:**
+
+1. **Before Publishing:**
+   - Test locally: `npm run dev`
+   - Package extension: `npm run package`
+   - Submit to Chrome Web Store
+
+2. **After Approval:**
+   - Update `CHROME_STORE_URL` in `lib/constants.ts`
+   - Redeploy production app
+   - Done!
+
+3. **Optional Updates:**
+   - Update production iframe URL in `content/inject.js`
+   - Update `EXTENSION_ID` in `lib/constants.ts`
+
+### Pre-Flight Checklist
+
+Before deploying to production:
+
+- [ ] Test extension locally works perfectly
+- [ ] All features tested in Lovable
+- [ ] Auth flow works smoothly
+- [ ] Meta connection works
+- [ ] Can create and publish ads
+- [ ] Analytics display correctly
+- [ ] No console errors
+- [ ] Environment variables set in production
+- [ ] Database migrations applied
+- [ ] Privacy policy accessible at `/privacy`
+- [ ] Terms of service accessible at `/terms`
 
 ## Resources
 

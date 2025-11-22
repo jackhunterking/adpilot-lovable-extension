@@ -6,6 +6,51 @@ export async function proxy(request: NextRequest) {
   // Skip proxy for iframe loading and static assets to prevent blocking
   const path = request.nextUrl.pathname;
   
+  // Handle CORS for /lovable routes (iframe embedding)
+  if (path.startsWith('/lovable')) {
+    const origin = request.headers.get('origin');
+    
+    // List of allowed origins for CORS
+    const allowedOrigins = [
+      'https://lovable.dev',
+      'https://app.lovable.dev',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000'
+    ];
+    
+    // Check if origin is allowed or matches wildcard lovable.dev
+    const isAllowed = origin && (
+      allowedOrigins.includes(origin) ||
+      origin.match(/^https:\/\/[a-z0-9-]+\.lovable\.dev$/)
+    );
+    
+    // Handle preflight requests
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': origin || '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+    
+    // Continue with regular processing but add CORS headers
+    const response = NextResponse.next();
+    
+    if (isAllowed) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+    }
+    
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    
+    return response;
+  }
+  
   // Allow these paths to load without auth checks (critical for iframe embedding)
   if (
     path.startsWith('/_next') ||

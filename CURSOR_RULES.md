@@ -149,8 +149,11 @@ await chrome.storage.local.set({
 
 Lovable uses `?view=` parameters for navigation:
 - `?view=cloud` - Cloud view
-- `?view=database` - Database view
-- `?view=ads` - Custom ads view (this extension)
+- `?view=codeEditor` - Code editor view
+- `?view=analytics` - Analytics view
+- `?view=security` - Security view
+- `?view=speed` - Speed view
+- `?view=grow` - AdPilot extension view (this extension)
 
 ```javascript
 // Extract project ID
@@ -160,10 +163,10 @@ function getLovableProjectId() {
 }
 
 // Navigate to custom view
-function navigateToAds() {
+function navigateToGrow() {
   const url = new URL(window.location.href);
-  url.searchParams.set('view', 'ads');
-  window.history.pushState({ view: 'ads' }, '', url);
+  url.searchParams.set('view', 'grow');
+  window.history.pushState({ view: 'grow' }, '', url);
   showAdPilotPanel();
 }
 ```
@@ -276,14 +279,19 @@ USING (auth.uid() = user_id);
 
 **Storage:**
 ```typescript
-// Upload
-const { data } = await supabase.storage
-  .from('generated-images')
+// Upload to ad-creatives bucket (permanent storage)
+const { data, error } = await supabase.storage
+  .from('ad-creatives')
   .upload(`ads/${userId}/${Date.now()}.png`, file);
+
+// Upload to ad-context-images bucket (temporary reference images)
+const { data, error } = await supabase.storage
+  .from('ad-context-images')
+  .upload(`${userId}/${Date.now()}.png`, file);
 
 // Get public URL
 const { data } = supabase.storage
-  .from('generated-images')
+  .from('ad-creatives')
   .getPublicUrl('path/to/file.png');
 ```
 

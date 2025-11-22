@@ -326,11 +326,7 @@ npm run package
 3. Update `manifest.json` with production iframe URL
 4. Submit to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
 
-For detailed deployment instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+For detailed deployment instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## 📝 License
 
@@ -338,9 +334,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📚 Documentation
 
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete developer guide: setup, testing, deployment
-- **[CURSOR_RULES.md](CURSOR_RULES.md)** - AI assistant reference: Chrome extensions, Lovable integration, best practices
-- **[LOVABLE_EXTENSION_USER_JOURNEY_TEST.md](LOVABLE_EXTENSION_USER_JOURNEY_TEST.md)** - User journey testing guide and checklist
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete developer guide: setup, testing, deployment, troubleshooting
+- **[CURSOR_RULES.md](CURSOR_RULES.md)** - AI assistant reference: Chrome extensions, Lovable integration, Supabase patterns, best practices
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ## 📧 Support
