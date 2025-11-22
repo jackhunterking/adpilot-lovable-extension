@@ -6,6 +6,9 @@
 "use client"
 
 import { useState } from "react"
+
+// Force dynamic rendering (requires authentication and context)
+export const dynamic = 'force-dynamic'
 import { LovableLayout } from "@/components/lovable/lovable-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
