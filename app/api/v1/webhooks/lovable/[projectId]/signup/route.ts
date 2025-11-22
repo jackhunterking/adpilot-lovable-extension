@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { LovableConversionService } from '@/lib/services/lovable';
 
 /**
@@ -72,7 +72,7 @@ export async function POST(
     }
 
     // 3. Use service role client (webhook doesn't have user auth)
-    const supabase = await createClient();
+    const supabase = await createServerClient();
 
     // 4. Delegate to conversion service
     const conversionService = new LovableConversionService(supabase);

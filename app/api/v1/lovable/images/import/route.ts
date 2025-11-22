@@ -8,17 +8,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { LovableSyncService } from '@/lib/services/lovable';
 
 /**
- * Import image from Lovable to AdPilot
+ * Import image(s) from Lovable to AdPilot (supports dual format)
  * 
  * POST /api/v1/lovable/images/import
  * 
  * Body:
  * {
- *   sourceUrl: string;
+ *   // Single format (legacy)
+ *   sourceUrl?: string;
+ *   // OR Dual format (Lovable extension)
+ *   sourceUrlSquare?: string;
+ *   sourceUrlVertical?: string;
+ *   selectedFormat?: 'square' | 'vertical';
+ *   
  *   campaignId: string;
  *   adId: string;
  *   metadata?: {
@@ -33,8 +39,8 @@ import { LovableSyncService } from '@/lib/services/lovable';
  *   success: boolean;
  *   data?: {
  *     creative: Creative;
- *     importRecord: ImageImportRecord;
- *     originalUrl: string;
+ *     importRecords: ImageImportRecord[];
+ *     originalUrls: { square?: string; vertical?: string };
  *   };
  *   error?: { code: string; message: string };
  * }
@@ -42,7 +48,7 @@ import { LovableSyncService } from '@/lib/services/lovable';
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -60,15 +66,32 @@ export async function POST(req: NextRequest) {
 
     // 2. Parse request body
     const body = await req.json();
-    const { sourceUrl, campaignId, adId, metadata } = body;
+    const { sourceUrl, sourceUrlSquare, sourceUrlVertical, selectedFormat, campaignId, adId, metadata } = body;
 
-    if (!sourceUrl || !campaignId || !adId) {
+    // Validate: either sourceUrl (legacy) or at least one dual format URL
+    const hasSingleFormat = Boolean(sourceUrl);
+    const hasDualFormat = Boolean(sourceUrlSquare || sourceUrlVertical);
+    
+    if (!hasSingleFormat && !hasDualFormat) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: 'missing_required_fields',
-            message: 'sourceUrl, campaignId, and adId are required'
+            message: 'Either sourceUrl or sourceUrlSquare/sourceUrlVertical is required'
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!campaignId || !adId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'missing_required_fields',
+            message: 'campaignId and adId are required'
           }
         },
         { status: 400 }
@@ -119,6 +142,37 @@ export async function POST(req: NextRequest) {
 
     // 5. Delegate to sync service (copies image to AdPilot Storage)
     const syncService = new LovableSyncService(supabase);
+    
+    // Handle dual format import
+    if (hasDualFormat) {
+      console.log('[Lovable API] Importing dual format images:', {
+        square: sourceUrlSquare,
+        vertical: sourceUrlVertical,
+        selectedFormat
+      });
+      
+      const result = await syncService.importDualFormatImages({
+        sourceUrlSquare,
+        sourceUrlVertical,
+        selectedFormat: selectedFormat || 'square',
+        campaignId,
+        adId,
+        userId: user.id,
+        metadata
+      });
+      
+      if (!result.success) {
+        return NextResponse.json(result, { status: 400 });
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: result.data
+      });
+    }
+    
+    // Handle legacy single format import
+    console.log('[Lovable API] Importing single format image from:', sourceUrl);
     const result = await syncService.importImageFromLovable({
       sourceUrl,
       campaignId,
