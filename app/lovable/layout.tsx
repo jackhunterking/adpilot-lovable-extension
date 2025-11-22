@@ -1,6 +1,7 @@
 /**
  * Feature: Lovable Routes Layout
  * Purpose: Provides context providers for all lovable sub-routes
+ * Note: Client components automatically render dynamically due to hooks/context usage
  */
 
 "use client"

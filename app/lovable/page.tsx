@@ -8,10 +8,6 @@
 import { LovableLayout } from "@/components/lovable/lovable-layout"
 import { CampaignWorkspaceOrchestrator } from "@/components/workspace/workspace-orchestrator"
 
-// Force dynamic rendering (requires authentication and context)
-export const dynamicParams = true
-export const revalidate = 0
-
 export default function LovableDashboard() {
   return (
     <LovableLayout>

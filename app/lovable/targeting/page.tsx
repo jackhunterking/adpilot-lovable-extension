@@ -20,10 +20,6 @@ import { Loader2, MapPin, Plus, X, Search } from "lucide-react"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
 
-// Force dynamic rendering (requires authentication and context)
-export const dynamicParams = true
-export const revalidate = 0
-
 // Dynamically import map to avoid SSR issues
 const LocationTargetingMap = dynamic(
   () => import("@/components/location-targeting-map").then(mod => mod.LocationTargetingMap),

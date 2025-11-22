@@ -7,10 +7,6 @@
 
 import { useState } from "react"
 import { LovableLayout } from "@/components/lovable/lovable-layout"
-
-// Force dynamic rendering (requires authentication and context)
-export const dynamicParams = true
-export const revalidate = 0
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"

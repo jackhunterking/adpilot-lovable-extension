@@ -10,10 +10,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-
-// Force dynamic rendering (requires authentication and context)
-export const dynamicParams = true
-export const revalidate = 0
 import { AdMockup } from "@/components/ad-mockup"
 import { AdMockupFormatToggle } from "@/components/ad-mockup-format-toggle"
 import { Button } from "@/components/ui/button"
