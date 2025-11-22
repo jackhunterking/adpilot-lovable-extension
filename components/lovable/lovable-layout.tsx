@@ -5,7 +5,7 @@
 
 "use client"
 
-import { ReactNode, useEffect, useState } from "react"
+import { ReactNode, useEffect, useState, Suspense } from "react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { LovableNavigation } from "./lovable-navigation"
 import { LovableAuthBlocker } from "./auth-blocker"
@@ -180,7 +180,9 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
   // authStep === 'ready'
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <LovableNavigation />
+      <Suspense fallback={<div className="h-16 border-b" />}>
+        <LovableNavigation />
+      </Suspense>
       <main className="flex-1">
         {children}
       </main>
