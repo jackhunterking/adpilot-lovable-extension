@@ -206,20 +206,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (event.data.type === 'OAUTH_SUCCESS') {
-        console.log('[AUTH-PROVIDER] OAuth popup succeeded, refreshing session')
+        console.log('[AUTH-PROVIDER] OAuth popup succeeded, getting session')
         
-        // Refresh session in parent window
-        supabase.auth.refreshSession().then(({ data, error }) => {
+        // Get session from storage (created by popup)
+        // Note: We use getSession() not refreshSession() because the parent
+        // doesn't have a session yet - it was created in the popup
+        supabase.auth.getSession().then(({ data, error }) => {
           if (error) {
-            console.error('[AUTH-PROVIDER] Error refreshing session after popup:', error)
-          } else {
-            console.log('[AUTH-PROVIDER] Session refreshed successfully after popup')
+            console.error('[AUTH-PROVIDER] Error getting session after popup:', error)
+          } else if (data.session) {
+            console.log('[AUTH-PROVIDER] Session retrieved successfully after popup')
             setSession(data.session)
             setUser(data.session?.user ?? null)
             
             if (data.session?.user) {
               fetchProfile(data.session.user.id)
             }
+          } else {
+            console.warn('[AUTH-PROVIDER] No session found after popup, will retry via onAuthStateChange')
           }
         })
       } else if (event.data.type === 'OAUTH_ERROR') {
