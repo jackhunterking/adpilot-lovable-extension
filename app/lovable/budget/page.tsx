@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useBudgetContext } from "@/lib/context/budget-context"
+import { useBudget } from "@/lib/context/budget-context"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, DollarSign, Info } from "lucide-react"
@@ -22,20 +22,18 @@ import { toast } from "sonner"
 
 export default function BudgetPage() {
   const {
-    dailyBudget,
+    budgetState,
     setDailyBudget,
-    lifetimeBudget,
-    setLifetimeBudget,
-    budgetType,
-    setBudgetType,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate
-  } = useBudgetContext()
+    setSchedule
+  } = useBudget()
 
-  const [localDailyBudget, setLocalDailyBudget] = useState(String(dailyBudget || 10))
-  const [localLifetimeBudget, setLocalLifetimeBudget] = useState(String(lifetimeBudget || 100))
+  const [localDailyBudget, setLocalDailyBudget] = useState(String(budgetState.dailyBudget || 10))
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    budgetState.startTime ? new Date(budgetState.startTime) : undefined
+  )
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    budgetState.endTime ? new Date(budgetState.endTime) : undefined
+  )
 
   // Calculate estimates
   const calculateDuration = () => {
@@ -44,24 +42,17 @@ export default function BudgetPage() {
   }
 
   const duration = calculateDuration()
-  const estimatedReach = budgetType === 'daily'
-    ? Math.round((Number(localDailyBudget) * duration) * 100)
-    : Math.round(Number(localLifetimeBudget) * 100)
-
-  const estimatedClicks = budgetType === 'daily'
-    ? Math.round((Number(localDailyBudget) * duration) * 5)
-    : Math.round(Number(localLifetimeBudget) * 5)
-
-  const totalSpend = budgetType === 'daily'
-    ? Number(localDailyBudget) * duration
-    : Number(localLifetimeBudget)
+  const estimatedReach = Math.round((Number(localDailyBudget) * Math.max(duration, 7)) * 100)
+  const estimatedClicks = Math.round((Number(localDailyBudget) * Math.max(duration, 7)) * 5)
+  const totalSpend = Number(localDailyBudget) * Math.max(duration, 7)
 
   const handleSave = () => {
-    if (budgetType === 'daily') {
-      setDailyBudget(Number(localDailyBudget))
-    } else {
-      setLifetimeBudget(Number(localLifetimeBudget))
-    }
+    setDailyBudget(Number(localDailyBudget))
+    setSchedule({
+      startTime: startDate?.toISOString() || null,
+      endTime: endDate?.toISOString() || null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
     toast.success("Budget configuration saved!")
   }
 
@@ -85,84 +76,33 @@ export default function BudgetPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Budget Type */}
-              <div className="space-y-2">
-                <Label>Budget Type</Label>
-                <RadioGroup
-                  value={budgetType}
-                  onValueChange={(value: "daily" | "lifetime") => setBudgetType(value)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="daily" id="daily" />
-                    <Label htmlFor="daily" className="cursor-pointer font-normal">
-                      Daily Budget - Spend a set amount each day
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="lifetime" id="lifetime" />
-                    <Label htmlFor="lifetime" className="cursor-pointer font-normal">
-                      Lifetime Budget - Total budget for entire campaign
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
               {/* Daily Budget Input */}
-              {budgetType === 'daily' && (
-                <div className="space-y-2">
-                  <Label htmlFor="daily-budget">Daily Budget (USD)</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="daily-budget"
-                      type="number"
-                      min="5"
-                      step="1"
-                      value={localDailyBudget}
-                      onChange={(e) => setLocalDailyBudget(e.target.value)}
-                      className="pl-9"
-                      placeholder="10.00"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Minimum daily budget is $5.00
-                  </p>
+              <div className="space-y-2">
+                <Label htmlFor="daily-budget">Daily Budget ({budgetState.currency})</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="daily-budget"
+                    type="number"
+                    min="5"
+                    step="1"
+                    value={localDailyBudget}
+                    onChange={(e) => setLocalDailyBudget(e.target.value)}
+                    className="pl-9"
+                    placeholder="10.00"
+                  />
                 </div>
-              )}
-
-              {/* Lifetime Budget Input */}
-              {budgetType === 'lifetime' && (
-                <div className="space-y-2">
-                  <Label htmlFor="lifetime-budget">Lifetime Budget (USD)</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="lifetime-budget"
-                      type="number"
-                      min="10"
-                      step="1"
-                      value={localLifetimeBudget}
-                      onChange={(e) => setLocalLifetimeBudget(e.target.value)}
-                      className="pl-9"
-                      placeholder="100.00"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Minimum lifetime budget is $10.00
-                  </p>
-                </div>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  Minimum daily budget is ${5.00}
+                </p>
+              </div>
 
               {/* Information Box */}
               <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 text-sm">
                 <div className="flex gap-2">
                   <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="text-blue-800 dark:text-blue-200">
-                    {budgetType === 'daily' ? (
-                      <p>Meta will spend up to your daily budget each day. Actual spend may vary by up to 25% on any given day.</p>
-                    ) : (
-                      <p>Meta will evenly distribute your lifetime budget across your campaign duration for optimal results.</p>
-                    )}
+                    <p>Meta will spend up to your daily budget each day. Actual spend may vary by up to 25% on any given day.</p>
                   </div>
                 </div>
               </div>

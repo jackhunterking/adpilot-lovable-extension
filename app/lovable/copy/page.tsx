@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCopyGeneration, GeneratedCopy } from "@/lib/hooks/use-copy-generation"
-import { useAdCopyContext } from "@/lib/context/ad-copy-context"
+import { useAdCopy } from "@/lib/context/ad-copy-context"
 import { Loader2, Sparkles, Copy as CopyIcon, Check } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -26,7 +26,11 @@ export default function CopyPage() {
     variations
   } = useCopyGeneration()
 
-  const { headline, setHeadline, body, setBody, cta, setCta } = useAdCopyContext()
+  const { getSelectedCopy, setCustomCopyVariations, setSelectedCopyIndex } = useAdCopy()
+  const selectedCopy = getSelectedCopy()
+  const headline = selectedCopy.headline
+  const body = selectedCopy.primaryText
+  const cta = selectedCopy.description
 
   const [prompt, setPrompt] = useState("")
   const [tone, setTone] = useState("professional")
@@ -43,9 +47,8 @@ export default function CopyPage() {
   }
 
   const handleSelectVariation = (variation: GeneratedCopy) => {
-    setHeadline(variation.headline)
-    setBody(variation.body)
-    setCta(variation.cta)
+    const index = variations.findIndex(v => v.id === variation.id)
+    setSelectedCopyIndex(index >= 0 ? index : 0)
     setSelectedVariation(variation.id)
     toast.success("Copy applied to your ad!")
   }

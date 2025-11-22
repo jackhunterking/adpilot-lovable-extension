@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useLocationSearch, LocationResult } from "@/lib/hooks/use-location-search"
-import { useLocationContext } from "@/lib/context/location-context"
+import { useLocation } from "@/lib/context/location-context"
 import { Loader2, MapPin, Plus, X, Search } from "lucide-react"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
@@ -35,15 +35,15 @@ export default function TargetingPage() {
   } = useLocationSearch()
   
   const {
-    locations,
-    excludedLocations,
-    addLocation,
-    excludeLocation,
+    locationState,
+    addLocations,
     removeLocation,
-    removeExcludedLocation,
-    mode,
-    setMode
-  } = useLocationContext()
+    clearLocations
+  } = useLocation()
+  
+  const locations = locationState.locations.filter(l => l.mode === 'include')
+  const excludedLocations = locationState.locations.filter(l => l.mode === 'exclude')
+  const [mode, setMode] = useState<"include" | "exclude">("include")
 
   const [searchQuery, setSearchQuery] = useState("")
   const [ageMin, setAgeMin] = useState(18)
@@ -56,26 +56,26 @@ export default function TargetingPage() {
   }
 
   const handleAddLocation = (location: LocationResult) => {
-    addLocation({
+    addLocations([{
       id: location.id,
       name: location.name,
-      type: location.type,
-      country_code: location.country_code,
-      region: location.region
-    })
+      type: location.type as "radius" | "city" | "region" | "country",
+      coordinates: [0, 0] as [number, number],
+      mode: 'include'
+    }])
     toast.success(`Added ${location.name}`)
     clearResults()
     setSearchQuery("")
   }
 
   const handleExcludeLocation = (location: LocationResult) => {
-    excludeLocation({
+    addLocations([{
       id: location.id,
       name: location.name,
-      type: location.type,
-      country_code: location.country_code,
-      region: location.region
-    })
+      type: location.type as "radius" | "city" | "region" | "country",
+      coordinates: [0, 0] as [number, number],
+      mode: 'exclude'
+    }])
     toast.success(`Excluded ${location.name}`)
     clearResults()
     setSearchQuery("")
@@ -210,7 +210,7 @@ export default function TargetingPage() {
                         {loc.name}
                         <X
                           className="h-3 w-3 cursor-pointer"
-                          onClick={() => removeExcludedLocation(loc.id)}
+                          onClick={() => removeLocation(loc.id)}
                         />
                       </Badge>
                     ))}
