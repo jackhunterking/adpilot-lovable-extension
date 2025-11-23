@@ -42,9 +42,10 @@ const steps: AdBuilderStep[] = [
 interface AdBuilderProps {
   lovableProjectId?: string
   initialDraft?: Partial<AdDraft>
+  refreshAds?: () => Promise<void>
 }
 
-export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProps) {
+export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: AdBuilderProps) {
   console.log('[AD-BUILDER] Component mounting with projectId:', lovableProjectId)
   
   const router = useRouter()
@@ -240,6 +241,12 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
       } else {
         console.log("[AdBuilder] No data to save yet - just created draft ad")
         toast.success("Draft ad created - fill in details and save again")
+      }
+      
+      // Refresh ads list to show updated draft
+      if (refreshAds) {
+        await refreshAds()
+        console.log("[AdBuilder] ✅ Ads list refreshed")
       }
       
       // Redirect to ads list page within campaign (if campaign exists)

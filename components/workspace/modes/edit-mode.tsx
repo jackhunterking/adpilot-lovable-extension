@@ -45,7 +45,7 @@ export function EditMode(props: EditModeProps) {
       
       {/* Edit interface */}
       <div className="flex-1 overflow-hidden">
-        <PreviewPanel />
+        <PreviewPanel refreshAds={props.refreshAds} />
       </div>
     </div>
   );

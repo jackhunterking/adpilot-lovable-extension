@@ -45,7 +45,11 @@ import { logger } from "@/lib/utils/logger"
 import { useSaveAd } from "@/lib/hooks/use-save-ad"
 import { AdMockupFormatToggle } from "@/components/ad-mockup-format-toggle"
 
-export function PreviewPanel() {
+interface PreviewPanelProps {
+  refreshAds?: () => Promise<void>
+}
+
+export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
   const searchParams = useSearchParams()
   const isCreatingVariant = searchParams.get('variant') === 'true'
   
@@ -630,6 +634,12 @@ export function PreviewPanel() {
       if (result.success) {
         toast.success('Draft saved successfully!')
         logger.info('PreviewPanel', '✅ Draft saved successfully')
+        
+        // Refresh ads list to show updated draft
+        if (refreshAds) {
+          await refreshAds()
+          logger.info('PreviewPanel', '✅ Ads list refreshed')
+        }
       } else {
         throw new Error(result.error || 'Failed to save draft')
       }
@@ -637,7 +647,7 @@ export function PreviewPanel() {
       logger.error('PreviewPanel', 'Error saving draft', error)
       toast.error('Failed to save draft')
     }
-  }, [campaign?.id, currentAdId, isSavingHook, saveAd, adContent, selectedImageIndex, adCopyState, destinationState, locationState, budgetState])
+  }, [campaign?.id, currentAdId, isSavingHook, saveAd, adContent, selectedImageIndex, adCopyState, destinationState, locationState, budgetState, refreshAds])
   
   /**
    * Handles ad publish action - opens confirmation dialog

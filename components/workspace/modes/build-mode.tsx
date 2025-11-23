@@ -49,7 +49,10 @@ export function BuildMode(props: BuildModeProps) {
   
   return (
     <div className="flex-1 h-full overflow-hidden">
-      <AdBuilder lovableProjectId={lovableProjectId} />
+      <AdBuilder 
+        lovableProjectId={lovableProjectId}
+        refreshAds={props.refreshAds}
+      />
     </div>
   );
 }
