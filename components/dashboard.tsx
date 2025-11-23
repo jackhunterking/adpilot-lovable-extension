@@ -43,10 +43,7 @@ export function Dashboard({
   const searchParams = useSearchParams()
   const [credits] = useState(205.5)
   
-  // Campaign-level conversation ID (persists across ads)
-  // Remove URL override - conversation ID is always campaign-level
-  const { campaign, updateCampaign, getOrCreateConversationId } = useCampaignContext()
-  const [campaignConversationId, setCampaignConversationId] = useState<string | null>(conversationId || null)
+  const { campaign, updateCampaign } = useCampaignContext()
   
   // Get current ad ID from URL
   const currentAdId = searchParams.get('adId')
@@ -75,21 +72,6 @@ export function Dashboard({
     
     runMigration()
   }, [campaignId])
-  
-  // Get or create campaign-level conversation ID (persists across ads)
-  useEffect(() => {
-    const initConversationId = async () => {
-      if (campaign?.id && !campaignConversationId) {
-        const id = await getOrCreateConversationId()
-        if (id) {
-          setCampaignConversationId(id)
-        }
-      } else if (campaign?.ai_conversation_id && !campaignConversationId) {
-        setCampaignConversationId(campaign.ai_conversation_id)
-      }
-    }
-    void initConversationId()
-  }, [campaign?.id, campaign?.ai_conversation_id, campaignConversationId, getOrCreateConversationId])
   
   // Load collapse preference from localStorage on mount
   useEffect(() => {

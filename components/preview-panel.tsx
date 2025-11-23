@@ -44,6 +44,8 @@ import { LaunchCampaignView } from "@/components/launch/launch-campaign-view"
 import { logger } from "@/lib/utils/logger"
 import { useSaveAd } from "@/lib/hooks/use-save-ad"
 import { AdMockupFormatToggle } from "@/components/ad-mockup-format-toggle"
+import { useAdService, useTargetingService } from "@/lib/services/service-provider"
+import { publishServiceClient } from "@/lib/services/client"
 
 interface PreviewPanelProps {
   refreshAds?: () => Promise<void>
@@ -71,6 +73,10 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
   const [showReelMessage, setShowReelMessage] = useState(false)
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
   const { saveAd, isSaving: isSavingHook } = useSaveAd()
+  
+  // Service layer hooks
+  const adService = useAdService()
+  const targetingService = useTargetingService()
   
   // Modal state management for section editing
   const [locationModalOpen, setLocationModalOpen] = useState(false)
@@ -201,24 +207,17 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
         return
       }
       
-      // Save to database
+      // Save to database via service
       try {
-        const response = await fetch(
-          `/api/v1/ads/${currentAd.id}/save`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sections)
-          }
-        )
+        const result = await adService.saveSnapshot.execute({
+          adId: currentAd.id,
+          snapshot: sections
+        })
         
-        if (response.ok) {
-          const data = await response.json()
-          console.log(`[PreviewPanel] ✅ Step "${stepId}" saved for ad ${currentAd.id}`, {
-            completedSteps: data.completed_steps
-          })
+        if (result.success) {
+          console.log(`[PreviewPanel] ✅ Step "${stepId}" saved for ad ${currentAd.id}`)
         } else {
-          console.error('[PreviewPanel] Save failed:', await response.text())
+          console.error('[PreviewPanel] Save failed:', result.error)
         }
       } catch (error) {
         console.error('[PreviewPanel] Save error:', error)
@@ -325,33 +324,24 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
       // Save ONLY new locations to database (granular operation)
       if (campaign?.id && currentAd?.id) {
         try {
-          // Determine endpoint based on mode (check first location since all should have same mode)
+          // Determine mode based on first location
           const firstLocationMode = locationsWithIds[0]?.mode || 'include';
           const isExclude = firstLocationMode === 'exclude';
-          const endpoint = isExclude
-            ? `/api/v1/ads/${currentAd.id}/locations/exclude`
-            : `/api/v1/ads/${currentAd.id}/locations`;
           
           logger.debug('PreviewPanel', `💾 Saving ${locationsWithIds.length} ${isExclude ? 'exclude' : 'include'} location(s)`);
           
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              locations: locationsWithIds  // Only NEW locations, not merged
-            })
+          const result = await targetingService.addLocations.execute({
+            adId: currentAd.id,
+            locations: locationsWithIds,
+            mode: isExclude ? 'exclude' : 'include'
           });
           
-          if (response.ok) {
-            const data = await response.json();
-            logger.info('PreviewPanel', `✅ ${isExclude ? 'Exclude' : 'Include'} locations saved`, {
-              count: data.count
-            });
+          if (result.success) {
+            logger.info('PreviewPanel', `✅ ${isExclude ? 'Exclude' : 'Include'} locations saved`);
             // Fire and forget reload (no await for speed)
             reloadAd();
           } else {
-            const errorText = await response.text();
-            logger.error('PreviewPanel', '❌ Failed to save locations:', errorText);
+            logger.error('PreviewPanel', '❌ Failed to save locations:', result.error);
             toast.error('Failed to save location - please try again');
           }
         } catch (error) {
@@ -402,17 +392,16 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
       logger.debug('PreviewPanel', '🗑️ Removing location from DB', { databaseId });
       
       try {
-        const response = await fetch(
-          `/api/v1/ads/${currentAd.id}/locations/${databaseId}`,
-          { method: 'DELETE' }
-        );
+        const result = await targetingService.removeLocation.execute({
+          adId: currentAd.id,
+          locationId: databaseId
+        });
         
-        if (response.ok) {
+        if (result.success) {
           logger.info('PreviewPanel', '✅ Location removed from database');
           reloadAd();  // Fire and forget
         } else {
-          const errorText = await response.text();
-          logger.error('PreviewPanel', '❌ Failed to remove location:', errorText);
+          logger.error('PreviewPanel', '❌ Failed to remove location:', result.error);
           toast.error('Failed to remove location');
         }
       } catch (error) {
@@ -446,17 +435,13 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
       
       if (campaign?.id && currentAd?.id) {
         try {
-          const response = await fetch(
-            `/api/v1/ads/${currentAd.id}/locations`,
-            { method: 'DELETE' }
-          );
+          const result = await targetingService.clearLocations.execute(currentAd.id);
           
-          if (response.ok) {
+          if (result.success) {
             logger.info('PreviewPanel', '✅ All locations cleared from database');
             reloadAd();  // Fire and forget
           } else {
-            const errorText = await response.text();
-            logger.error('PreviewPanel', '❌ Failed to clear locations:', errorText);
+            logger.error('PreviewPanel', '❌ Failed to clear locations:', result.error);
             toast.error('Failed to clear locations');
           }
         } catch (error) {
@@ -551,7 +536,7 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
           try {
             const res = await fetch(
               `/api/v1/meta/payment?campaignId=${encodeURIComponent(campaign.id)}`,
-              { cache: "no-store" },
+              { cache: "no-store", credentials: "include" },
             )
 
             if (!res.ok) {
@@ -694,18 +679,17 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
       // Step 2: Publish the ad
       logger.info('PreviewPanel', '📦 Step 2: Publishing ad to Meta...')
       
-      const publishResponse = await fetch(`/api/v1/ads/${currentAdId}/publish`, {
-        method: 'POST',
+      const publishResult = await publishServiceClient.publishAd({
+        adId: currentAdId,
+        campaignId: campaign.id
       })
       
-      if (!publishResponse.ok) {
-        const errorData = await publishResponse.json()
-        logger.error('PreviewPanel', 'Failed to publish ad', errorData)
-        throw new Error(errorData.error || 'Failed to publish ad')
+      if (!publishResult.success) {
+        logger.error('PreviewPanel', 'Failed to publish ad', publishResult.error)
+        throw new Error(publishResult.error?.message || 'Failed to publish ad')
       }
       
-      const publishResult = await publishResponse.json()
-      logger.info('PreviewPanel', `✅ Step 2 complete: Ad published (status: ${publishResult.status})`)
+      logger.info('PreviewPanel', `✅ Step 2 complete: Ad published (status: ${publishResult.data?.status})`)
       
       // Mark as published in context
       setIsPublished(true)
@@ -784,31 +768,25 @@ export function PreviewPanel({ refreshAds }: PreviewPanelProps = {}) {
     // Save to backend immediately (don't wait for auto-save)
     if (campaign?.id && currentAd?.id) {
       try {
-        const response = await fetch(
-          `/api/v1/ads/${currentAd.id}/save`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              creative: {
-                imageVariations: adContent?.imageVariations || [],
-                selectedImageIndex: index,
-                format: 'feed'
-              }
-            })
+        const result = await adService.saveSnapshot.execute({
+          adId: currentAd.id,
+          snapshot: {
+            creative: {
+              imageVariations: adContent?.imageVariations || [],
+              selectedImageIndex: index,
+              format: 'feed'
+            }
           }
-        )
+        })
 
-        if (!response.ok) {
-          console.error('[Creative] Failed to save selection:', await response.text())
+        if (!result.success) {
+          console.error('[Creative] Failed to save selection:', result.error)
           toast.error('Failed to save creative selection')
           return
         }
 
-        const data = await response.json()
         console.log('[Creative] ✅ Saved selection immediately', {
-          selectedIndex: index,
-          completedSteps: data.completed_steps
+          selectedIndex: index
         })
         
         // Reload ad to update currentAd.completed_steps from backend

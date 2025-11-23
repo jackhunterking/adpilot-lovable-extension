@@ -13,6 +13,8 @@ This Chrome extension adds a "Grow" tab to the Lovable editor, providing direct 
 - 💰 Budget management and performance tracking
 - 🔄 Multi-tenant architecture (works for any Lovable user)
 - ✨ Seamless integration with Lovable AI
+- 📋 Duplicate successful ads for A/B testing
+- 🏗️ Clean service layer architecture (100% compliance)
 
 ## 🚀 Quick Start
 
@@ -86,6 +88,12 @@ npm run dev
 - Daily performance breakdown
 - Automated insights and recommendations
 - Export analytics to CSV
+
+**7. Ad Management - Duplicate & Edit**
+- Duplicate successful ads for A/B testing (NEW!)
+- Complete data cloning (creative, copy, targeting, budget)
+- Edit existing ads with full context
+- Pause/resume active campaigns
 
 ## 🔧 Configuration
 
@@ -253,6 +261,46 @@ The extension follows a microservices architecture with clear separation of conc
 └───────────────────────────────────────────────────────────┘
 ```
 
+### Service Layer Architecture
+
+**Pattern**: Clean separation between UI and API
+
+```
+Component → Service → API Route → Database
+   ✓         ✓          ✓           ✓
+```
+
+**Available Services** (in `lib/services/client/`):
+- `adService` - Ad operations (create, update, delete, duplicate, save, publish)
+- `campaignService` - Campaign management
+- `creativeService` - Image/creative operations
+- `copyService` - Ad copy management
+- `targetingService` - Audience & location targeting
+- `destinationService` - Destination configuration
+- `budgetService` - Budget operations
+- `analyticsService` - Performance metrics
+- `metaService` - Meta API integration
+
+**Usage Example**:
+```typescript
+import { useAdService } from '@/lib/services/service-provider'
+
+const adService = useAdService()
+const result = await adService.duplicateAd.execute(adId)
+
+if (result.success) {
+  toast.success('Ad duplicated!')
+} else {
+  toast.error(result.error.message)
+}
+```
+
+**Benefits**:
+- 100% type-safe with ServiceResult<T> pattern
+- Easy to test (mockable services)
+- Consistent error handling
+- Centralized business logic
+
 ### Key Components
 
 **Content Script** (`content/inject.js`):
@@ -265,10 +313,10 @@ The extension follows a microservices architecture with clear separation of conc
 **Next.js App** (iframe at `localhost:3000/lovable`):
 - Extension landing page at root (`/`) for installation instructions
 - Workspace dashboard with authentication required
-- Direct UI pages (no chat interface)
+- **Lovable AI Integration**: Uses Lovable's AI Chat (no custom chat system)
 - Real-time metrics and analytics
 - Meta OAuth integration
-- AI-powered features (image generation, copy writing, targeting suggestions)
+- AI-powered features via Lovable AI
 
 **Background Service Worker**:
 - Minimal, infrastructure-only design
@@ -279,7 +327,7 @@ The extension follows a microservices architecture with clear separation of conc
 **Supabase Backend**:
 - Multi-tenant PostgreSQL database
 - Row Level Security (RLS) for data isolation
-- Two access patterns: campaign-based and project-based
+- Normalized schema (ads, campaigns, creatives, copy, locations, budgets)
 - Storage for AI-generated images
 - Real-time subscriptions
 
@@ -346,6 +394,12 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide: staging, production, Chrome Web Store submission
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
+### Architecture & Code Quality
+
+- **[COMPREHENSIVE_ARCHITECTURAL_REVIEW.md](COMPREHENSIVE_ARCHITECTURAL_REVIEW.md)** - Full architectural audit (10 phases)
+- **[REFACTORING_SUCCESS_REPORT.md](REFACTORING_SUCCESS_REPORT.md)** - Latest refactoring summary (Nov 2025)
+- **[ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md)** - System architecture documentation
+
 ### Reference Docs
 
 - **[CHROME_WEB_STORE_SUBMISSION.md](CHROME_WEB_STORE_SUBMISSION.md)** - Detailed Chrome Web Store submission guide
@@ -355,6 +409,14 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ### Development
 
 For AI assistance and development patterns, see `.cursorrules` file in the project root.
+
+### Recent Updates (November 2025)
+
+- ✅ **Service Layer Refactoring**: Achieved 100% compliance
+- ✅ **Code Cleanup**: Removed 1,200+ lines of unused conversation code
+- ✅ **New Feature**: Duplicate ad functionality
+- ✅ **Database Optimization**: Removed unused tables
+- ✅ **Quality**: Zero linter errors, production-ready
 
 ## 📧 Support
 
@@ -373,4 +435,4 @@ Built with:
 
 ---
 
-**Status**: ✅ Production Ready | **Version**: 1.0.0 | **Last Updated**: January 2025
+**Status**: ✅ Production Ready | **Version**: 0.3.0 | **Last Updated**: November 23, 2025

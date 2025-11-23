@@ -94,7 +94,67 @@ new MutationObserver(() => {
 - **Origin Validation**: Always validate postMessage origins
 - **No Sensitive Data**: Never store API keys or auth tokens in extension
 
+## 🏗️ Service Layer Architecture (MANDATORY)
+
+### Pattern: Components MUST Use Services
+
+**✅ CORRECT Pattern**:
+```typescript
+// In component:
+import { useAdService } from '@/lib/services/service-provider'
+
+const adService = useAdService()
+const result = await adService.createAd.execute({
+  name: 'My Ad',
+  status: 'draft'
+})
+
+if (result.success) {
+  // Handle success
+} else {
+  toast.error(result.error.message)
+}
+```
+
+**❌ WRONG Pattern**:
+```typescript
+// NEVER DO THIS - Bypasses service layer!
+const response = await fetch('/api/v1/ads', {
+  method: 'POST',
+  body: JSON.stringify(data)
+})
+```
+
+### Service Layer Rules
+
+1. **Components**: NEVER call fetch() for internal APIs - always use services
+2. **Contexts**: Delegate to services, don't make API calls directly
+3. **Hooks**: Use services from service provider
+4. **Services**: Located in `lib/services/client/` and `lib/services/server/`
+5. **Contracts**: Type-safe interfaces in `lib/services/contracts/`
+
+### Available Services
+
+- `useAdService()` - Ad operations (create, update, delete, duplicate, save, publish)
+- `useCampaignService()` - Campaign operations (create, update, delete, list)
+- `useCreativeService()` - Creative/image operations
+- `useCopyService()` - Ad copy operations
+- `useTargetingService()` - Location targeting (add, remove, clear)
+- `useDestinationService()` - Destination configuration
+- `useBudgetService()` - Budget operations
+- `useAnalyticsService()` - Metrics and analytics
+- `useMetaService()` - Meta API operations
+
+**Exception**: External API calls (Meta Graph API, geocoding) can use fetch directly
+
 ## 🤖 Lovable AI Integration
+
+### AI Chat System
+**IMPORTANT**: This project uses Lovable's AI Chat directly. We do NOT have a custom conversation/messaging system.
+
+- ✅ **Keep**: `components/ai-chat.tsx` (integrates with Lovable AI)
+- ✅ **Keep**: AI SDK elements (`components/ai-elements/`)
+- ❌ **Removed**: Custom conversation storage (tables, routes, services)
 
 ### Default Model
 - **Gemini 2.5 Flash**: Default balanced model for most tasks

@@ -16,8 +16,6 @@ interface Campaign {
   updated_at: string
   published_status?: string | null
   last_metrics_sync_at?: string | null
-  conversationId?: string // Link to AI SDK conversation
-  ai_conversation_id?: string | null // Campaign-level conversation ID (persists across ads)
   campaign_budget?: number | null // Legacy - use campaign_budget_cents
   campaign_budget_cents?: number | null // New normalized field
   budget_strategy?: string | null
@@ -35,8 +33,6 @@ interface CampaignContextType {
   updateCampaign: (updates: Partial<Campaign>) => Promise<void>
   updateBudget: (budgetCents: number) => Promise<void>
   clearCampaign: () => void
-  getOrCreateConversationId: () => Promise<string | null>
-  updateConversationId: (conversationId: string) => Promise<void>
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined)
@@ -87,23 +83,6 @@ export function CampaignProvider({
         budget: campaignData.campaign_budget_cents
       })
       
-      // Fetch linked conversation (v1 API)
-      try {
-        const convResponse = await fetch(`/api/v1/conversations?campaignId=${id}`, {
-          credentials: 'include'
-        })
-        if (convResponse.ok) {
-          const data = await convResponse.json()
-          const conversations = data.data?.conversations || []
-          if (conversations.length > 0) {
-            campaignData.conversationId = conversations[0].id
-            logger.debug('CampaignContext', `Loaded conversation ${campaignData.conversationId}`)
-          }
-        }
-      } catch (convError) {
-        console.warn('[CampaignContext] Failed to load conversation:', convError)
-      }
-      
       setCampaign(campaignData as Campaign)
     } catch (err) {
       console.error('Error loading campaign:', err)
@@ -135,23 +114,6 @@ export function CampaignProvider({
       
       if (!campaignData) {
         throw new Error('Campaign data is missing from response')
-      }
-      
-      // Fetch linked conversation (v1 API)
-      try {
-        const convResponse = await fetch(`/api/v1/conversations?campaignId=${campaignData.id}`, {
-          credentials: 'include'
-        })
-        if (convResponse.ok) {
-          const data = await convResponse.json()
-          const conversations = data.data?.conversations || []
-          if (conversations.length > 0) {
-            campaignData.conversationId = conversations[0].id
-            logger.debug('CampaignContext', `Found conversation ${campaignData.conversationId}`)
-          }
-        }
-      } catch (convError) {
-        console.warn('[CampaignContext] Failed to fetch conversation:', convError)
       }
       
       setCampaign(campaignData as Campaign)
@@ -227,99 +189,6 @@ export function CampaignProvider({
   }, [initialCampaignId, user])
 
   // Clear campaign when user logs out
-  // Get or create campaign-level conversation ID
-  const getOrCreateConversationId = async (): Promise<string | null> => {
-    if (!campaign?.id) {
-      logger.error('CampaignContext', 'Cannot get conversation ID - no campaign loaded')
-      return null
-    }
-
-    // Check if campaign already has a conversation ID
-    if (campaign.ai_conversation_id) {
-      logger.debug('CampaignContext', 'Using existing conversation ID', {
-        campaignId: campaign.id,
-        conversationId: campaign.ai_conversation_id,
-      })
-      return campaign.ai_conversation_id
-    }
-
-    // Create new conversation ID for campaign
-    try {
-      logger.info('CampaignContext', 'Creating new conversation ID for campaign', {
-        campaignId: campaign.id,
-      })
-
-      const response = await fetch(`/api/v1/conversations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          campaignId: campaign.id,
-          title: 'Campaign Chat',
-        }),
-      })
-
-      if (!response.ok) {
-        logger.error('CampaignContext', 'Failed to create conversation')
-        return null
-      }
-
-      const data = await response.json()
-      const conversationId = data.data?.conversation?.id
-
-      // Update local state
-      setCampaign(prev => prev ? { ...prev, ai_conversation_id: conversationId } : null)
-
-      logger.info('CampaignContext', '✅ Created conversation ID', {
-        campaignId: campaign.id,
-        conversationId,
-      })
-
-      return conversationId
-    } catch (err) {
-      logger.error('CampaignContext', 'Exception creating conversation ID', err as Error)
-      return null
-    }
-  }
-
-  // Update campaign conversation ID - delegated to service
-  const updateConversationId = async (conversationId: string): Promise<void> => {
-    if (!campaign?.id) {
-      logger.error('CampaignContext', 'Cannot update conversation ID - no campaign loaded')
-      return
-    }
-
-    try {
-      logger.info('CampaignContext', 'Updating conversation ID', {
-        campaignId: campaign.id,
-        conversationId,
-      })
-
-      // Use campaign service - Note: ai_conversation_id not in interface, store in metadata
-      const result = await campaignService.updateCampaign.execute({
-        id: campaign.id,
-        metadata: { ...campaign.metadata, conversationId },
-      })
-
-      if (!result.success) {
-        logger.error('CampaignContext', 'Failed to update conversation ID', result.error)
-        return
-      }
-
-      // Update local state
-      if (result.data) {
-        setCampaign(result.data as Campaign)
-      }
-
-      logger.info('CampaignContext', '✅ Updated conversation ID via service', {
-        campaignId: campaign.id,
-        conversationId,
-      })
-    } catch (err) {
-      logger.error('CampaignContext', 'Exception updating conversation ID', err as Error)
-    }
-  }
-
   useEffect(() => {
     if (!user) {
       clearCampaign()
@@ -336,8 +205,6 @@ export function CampaignProvider({
       updateCampaign,
       updateBudget,
       clearCampaign,
-      getOrCreateConversationId,
-      updateConversationId,
     }}>
       {children}
     </CampaignContext.Provider>

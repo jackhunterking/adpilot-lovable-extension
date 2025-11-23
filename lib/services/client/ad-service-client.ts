@@ -391,18 +391,36 @@ class AdServiceClient implements AdService {
 
   duplicateAd = {
     async execute(adId: string): Promise<ServiceResult<Ad>> {
-      // TODO: Implement duplicate ad endpoint
-      // Route /api/v1/ads/[id]/duplicate does not exist yet
-      // Options:
-      // 1. Create the route in app/api/v1/ads/[id]/duplicate/route.ts
-      // 2. Implement client-side duplication using getAd + createAd
-      return {
-        success: false,
-        error: {
-          code: 'not_implemented',
-          message: 'Duplicate ad endpoint not yet implemented',
-        },
-      };
+      try {
+        const response = await fetch(`/api/v1/ads/${adId}/duplicate`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        
+        const result: unknown = await response.json();
+        
+        if (!response.ok) {
+          const errorResult = result as { success: false; error: { code: string; message: string } };
+          return {
+            success: false,
+            error: errorResult.error,
+          };
+        }
+        
+        const successResult = result as { success: true; data: { ad: Ad } };
+        return {
+          success: true,
+          data: successResult.data.ad,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            code: 'network_error',
+            message: error instanceof Error ? error.message : 'Failed to duplicate ad',
+          },
+        };
+      }
     }
   };
 }

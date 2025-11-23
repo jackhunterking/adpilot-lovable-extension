@@ -24,15 +24,10 @@ export const API_V1_ROUTES = {
   '/api/v1/ads/[id]/publish': ['POST'],
   '/api/v1/ads/[id]/pause': ['POST'],
   '/api/v1/ads/[id]/resume': ['POST'],
+  '/api/v1/ads/[id]/duplicate': ['POST'],
   '/api/v1/ads/[id]/locations': ['POST', 'DELETE'],
   '/api/v1/ads/[id]/locations/exclude': ['POST'],
   '/api/v1/ads/[id]/locations/[locationId]': ['DELETE'],
-  
-  // Conversations & Chat API
-  '/api/v1/conversations': ['GET', 'POST'],
-  '/api/v1/conversations/[id]': ['GET', 'PATCH', 'DELETE'],
-  '/api/v1/conversations/[id]/messages': ['GET'],
-  '/api/v1/chat': ['POST'],
   
   // Meta Integration API
   '/api/v1/meta/status': ['GET'],

@@ -1,9 +1,10 @@
 /**
  * Feature: Campaign Operations Hook
- * Purpose: Direct campaign management without journey system
+ * Purpose: Campaign and ad management using service layer
  */
 
 import { useState, useCallback } from 'react'
+import { useCampaignService, useAdService } from '@/lib/services/service-provider'
 
 export interface Campaign {
   id: string
@@ -28,6 +29,8 @@ export interface Ad {
 }
 
 export function useCampaignOperations() {
+  const campaignService = useCampaignService()
+  const adService = useAdService()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,19 +39,16 @@ export function useCampaignOperations() {
     setError(null)
 
     try {
-      const response = await fetch('/api/v1/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name, initial_goal: goal || 'leads' })
+      const result = await campaignService.createCampaign.execute({
+        name,
+        goalType: (goal || 'leads') as 'leads' | 'calls' | 'website-visits',
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to create campaign')
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create campaign')
       }
 
-      const data = await response.json()
-      return data.data?.campaign as Campaign
+      return result.data as Campaign
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create campaign'
       setError(errorMessage)
@@ -56,20 +56,17 @@ export function useCampaignOperations() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [campaignService])
 
   const deleteCampaign = useCallback(async (campaignId: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
+      const result = await campaignService.deleteCampaign.execute(campaignId)
 
-      if (!response.ok) {
-        throw new Error('Failed to delete campaign')
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to delete campaign')
       }
 
       return true
@@ -80,23 +77,22 @@ export function useCampaignOperations() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [campaignService])
 
   const listCampaigns = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/v1/campaigns', {
-        credentials: 'include'
+      const result = await campaignService.listCampaigns.execute({
+        userId: '', // userId is handled by auth in service
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to list campaigns')
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to list campaigns')
       }
 
-      const data = await response.json()
-      return (data.data?.campaigns || []) as Campaign[]
+      return (result.data || []) as Campaign[]
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to list campaigns'
       setError(errorMessage)
@@ -104,7 +100,7 @@ export function useCampaignOperations() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [campaignService])
 
   const createAd = useCallback(async (
     adName: string,
@@ -114,29 +110,18 @@ export function useCampaignOperations() {
     setError(null)
 
     try {
-      const body: any = { name: adName }
-      
-      // Support both traditional and Lovable extension flows
-      if (options.campaignId) {
-        body.campaignId = options.campaignId
-      }
-      if (options.lovableProjectId) {
-        body.lovableProjectId = options.lovableProjectId
-      }
-
-      const response = await fetch('/api/v1/ads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body)
+      const result = await adService.createAd.execute({
+        name: adName,
+        status: 'draft',
+        campaignId: options.campaignId,
+        lovableProjectId: options.lovableProjectId,
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to create ad')
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create ad')
       }
 
-      const data = await response.json()
-      return data.data?.ad as Ad
+      return result.data as Ad
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create ad'
       setError(errorMessage)
@@ -144,20 +129,17 @@ export function useCampaignOperations() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [adService])
 
   const deleteAd = useCallback(async (adId: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/v1/ads/${adId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
+      const result = await adService.deleteAd.execute(adId)
 
-      if (!response.ok) {
-        throw new Error('Failed to delete ad')
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to delete ad')
       }
 
       return true
@@ -168,7 +150,7 @@ export function useCampaignOperations() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [adService])
 
   return {
     createCampaign,

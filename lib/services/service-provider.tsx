@@ -19,6 +19,7 @@ import {
   budgetServiceClient,
   analyticsServiceClient,
   metaServiceClient,
+  publishServiceClient,
 } from './client';
 import type {
   CampaignService,

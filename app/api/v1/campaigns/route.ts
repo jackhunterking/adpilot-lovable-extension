@@ -1,9 +1,8 @@
 /**
  * Feature: Campaigns API (v1)
- * Purpose: List and create campaigns with linked conversations
+ * Purpose: List and create campaigns
  * References:
  *  - API v1 Middleware: app/api/v1/_middleware.ts
- *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
  *  - Supabase: https://supabase.com/docs/guides/database
  */
 
@@ -11,7 +10,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import type { Tables } from '@/lib/supabase/database.types'
-import { conversationManager } from '@/lib/services/conversation-manager'
 import { generateCampaignNameAI } from '@/lib/ai/campaign-namer'
 
 // GET /api/v1/campaigns - List user's campaigns
@@ -165,25 +163,6 @@ export async function POST(request: NextRequest) {
           const campaign: Tables<'campaigns'> | null = insert.data as Tables<'campaigns'> | null
           console.log(`[POST /api/campaigns] ✅ Successfully created campaign "${campaign?.name}" (ID: ${campaign?.id})`)
           
-          // Conversation init
-          try {
-            const conversation = await conversationManager.createConversation(
-              user.id,
-              campaign!.id,
-              {
-                title: `Chat: ${campaign?.name ?? nameToTry}`,
-                metadata: {
-                  campaign_name: campaign?.name ?? nameToTry,
-                  initial_prompt: initialPrompt,
-                  current_goal: initialGoal || null,
-                },
-              }
-            )
-            console.log(`Created conversation ${conversation.id} for campaign ${campaign!.id} with goal: ${initialGoal || 'none'}`)
-          } catch (convError) {
-            console.error('Error creating conversation:', convError)
-          }
-
           // Create initial draft ad
           let draftAdId: string | undefined
           try {
@@ -254,24 +233,6 @@ export async function POST(request: NextRequest) {
     if (manualErr) {
       const status = (manualErr as unknown as { code?: string }).code === '23505' ? 409 : 500
       throw new Error(manualErr.message)
-    }
-
-    try {
-      const conversation = await conversationManager.createConversation(
-        user.id,
-        (manualCampaign as Tables<'campaigns'>).id,
-        {
-          title: `Chat: ${(manualCampaign as Tables<'campaigns'>).name}`,
-          metadata: {
-            campaign_name: (manualCampaign as Tables<'campaigns'>).name,
-            initial_prompt: initialPrompt,
-            current_goal: initialGoal || null,
-          },
-        }
-      )
-      console.log(`Created conversation ${conversation.id} for campaign ${(manualCampaign as Tables<'campaigns'>).id} with goal: ${initialGoal || 'none'}`)
-    } catch (convError) {
-      console.error('Error creating conversation:', convError)
     }
 
     // Create initial draft ad

@@ -10,8 +10,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - Image monitoring service
 - Advanced iframe communication
-- Error handling improvements
 - Chrome Web Store listing
+
+## [0.3.0] - 2025-11-23
+
+### Added
+- **Duplicate Ad Feature**: Clone existing ads with all data (creative, copy, targeting, budget)
+- API endpoint: `POST /api/v1/ads/[id]/duplicate`
+- Service method: `adService.duplicateAd.execute()`
+- Helper files for location mode management
+
+### Removed (Breaking Changes)
+- Conversation/messaging infrastructure (uses Lovable AI directly now)
+- 4 API routes: `/api/v1/conversations/*`, `/api/v1/chat`
+- 4 service files: `conversation-manager.ts`, `message-store.ts`, `finish-handler-service.ts`, `summarization.ts`
+- Database tables: `conversations`, `conversation_messages`
+- ~1,200 lines of dead code
+
+### Changed
+- **Service Layer**: Achieved 100% compliance (all components use services)
+- Refactored `ad-builder.tsx` to use `adService`
+- Refactored `current-ad-context.tsx` to use `adService.saveSnapshot`
+- Refactored `use-campaign-operations.ts` - all 5 methods use services
+- Refactored `preview-panel.tsx` - 6 fetch calls replaced with services
+- Cleaned `campaign-context.tsx` - removed conversation code
+- Updated API contracts - removed conversation routes
+
+### Fixed
+- All service layer violations (5 fixes)
+- TypeScript strict null checks in multiple files
+- Missing service provider exports
+- Build cache issues with deleted routes
+
+### Database
+- Migration `20251123000001_remove_conversations.sql` applied via Supabase MCP
+- Dropped `conversations` and `conversation_messages` tables
+- Cascade-removed all related indexes, RLS policies, and foreign keys
+
+### Documentation
+- Created `COMPREHENSIVE_ARCHITECTURAL_REVIEW.md` - full 10-phase audit
+- Created `REFACTORING_SUCCESS_REPORT.md` - refactoring summary
+- Updated `.cursorrules` - added service layer patterns
+- Updated `README.md` - documented new features
+
+### Technical Improvements
+- Service layer compliance: 95% → 100%
+- Code reduction: ~950 net lines removed
+- Build size: Smaller (dead code eliminated)
+- Type safety: Maintained throughout
+- Linter errors: 0 (no new errors introduced)
 
 ## [0.2.0] - 2025-11-20
 

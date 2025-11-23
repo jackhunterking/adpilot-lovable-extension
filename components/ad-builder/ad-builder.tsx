@@ -17,6 +17,7 @@ import type { AdDraft, AdBuilderStep, AdBuilderStepProps } from "@/lib/types/ad-
 import { useAutoFullscreen } from "@/lib/context/fullscreen-mode-context"
 import { ExitConfirmationDialog } from "./exit-confirmation-dialog"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useAdService } from "@/lib/services/service-provider"
 
 // Step components
 import { GetStarted } from "./steps/get-started"
@@ -50,6 +51,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
   
   const router = useRouter()
   const { campaign, createCampaign, loadCampaign } = useCampaignContext()
+  const adService = useAdService()
   const [currentStep, setCurrentStep] = useState(1)
   const [draft, setDraft] = useState<AdDraft>(initialDraft)
   const [showExitDialog, setShowExitDialog] = useState(false)
@@ -120,27 +122,20 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
         const adName = `Draft Ad - ${new Date().toLocaleString()}`
         console.log("[AdBuilder] Creating ad:", adName, "with lovableProjectId:", lovableProjectId)
         
-        const createResponse = await fetch(`/api/v1/ads`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            ...(finalCampaignId ? { campaignId: finalCampaignId } : {}),
-            ...(lovableProjectId ? { lovableProjectId: lovableProjectId } : {}),
-            name: adName,
-            status: 'draft',
-          }),
+        const result = await adService.createAd.execute({
+          ...(finalCampaignId ? { campaignId: finalCampaignId } : {}),
+          ...(lovableProjectId ? { lovableProjectId: lovableProjectId } : {}),
+          name: adName,
+          status: 'draft',
         })
 
-        if (!createResponse.ok) {
-          const errorData = await createResponse.json()
-          console.error("[AdBuilder] Failed to create ad:", errorData)
-          throw new Error(errorData.error?.message || errorData.error || 'Failed to create draft ad')
+        if (!result.success) {
+          console.error("[AdBuilder] Failed to create ad:", result.error)
+          throw new Error(result.error?.message || 'Failed to create draft ad')
         }
 
-        const createData = await createResponse.json()
-        adId = createData.data?.ad?.id
-        finalCampaignId = createData.data?.campaignId || createData.data?.ad?.campaign_id
+        adId = result.data.id
+        finalCampaignId = result.data.campaign_id
         
         setDraftAdId(adId)
         
@@ -290,7 +285,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
   }, [hasUnsavedChanges, isSaving])
 
   // Get current step component
-  const CurrentStepComponent = steps[currentStep - 1].component
+  const CurrentStepComponent = steps[currentStep - 1]?.component
   
   // Step-specific validation
   const canProceed = (() => {
@@ -341,7 +336,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
                 ))}
               </div>
               <span className="text-sm text-muted-foreground">
-                {currentStep}/{steps.length} • {steps[currentStep - 1].name}
+                {currentStep}/{steps.length} • {steps[currentStep - 1]?.name}
               </span>
             </div>
             

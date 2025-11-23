@@ -196,36 +196,32 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      logger.debug('CurrentAdContext', 'Updating ad snapshot via v1 API', {
+      logger.debug('CurrentAdContext', 'Updating ad snapshot via service', {
         adId: currentAdId,
         sections: Object.keys(snapshot)
       })
 
-      // Use v1 API route for saving snapshots
-      const response = await fetch(`/api/v1/ads/${currentAdId}/save`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(snapshot)
+      // Use ad service for snapshot updates
+      const result = await adService.saveSnapshot.execute({
+        adId: currentAdId,
+        snapshot,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to update' } }))
-        throw new Error(errorData.error?.message || `Failed to update snapshot`)
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to update snapshot')
       }
 
-      const result = await response.json()
-      
       console.log('[updateAdSnapshot] ✅ Database write successful');
-      console.log('[updateAdSnapshot] Saved location count:', result.data?.setup_snapshot?.location?.locations?.length || 0);
       
-      // Update local state with new snapshot
-      setCurrentAd(prev => prev ? { ...prev, setup_snapshot: result.data?.setup_snapshot } : null)
+      // Update local state with updated ad data
+      if (result.data) {
+        setCurrentAd(prev => prev ? { ...prev, ...result.data } : null)
+      }
       
       // Clear unsaved changes flag after successful save
       setHasUnsavedChanges(false)
       
-      logger.debug('CurrentAdContext', 'Snapshot updated successfully via v1 API')
+      logger.debug('CurrentAdContext', 'Snapshot updated successfully via service')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update snapshot'
       console.error('[updateAdSnapshot] ❌ Database write failed:', errorMessage, err);

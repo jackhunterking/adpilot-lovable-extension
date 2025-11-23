@@ -310,8 +310,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   
   // AI SDK Native Pattern: Use stable conversationId from server
   // This prevents ID changes that would cause useChat to reset
-  // Priority: conversationId from server > campaign.conversationId > campaignId
-  const chatId = conversationId || campaign?.conversationId || campaignId;
+  // Use campaignId as chat identifier (conversation system removed)
+  const chatId = conversationId || campaignId;
   
   // Simple transport following AI SDK pattern
   const transport = useMemo(
