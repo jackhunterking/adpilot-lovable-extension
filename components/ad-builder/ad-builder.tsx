@@ -204,34 +204,48 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
         }
       }
 
-      // Add metadata for tracking
-      savePayload.metadata = {
-        savedFrom: 'ad-builder-wizard',
-        editContext: 'draft-save',
-      }
+      // Check if we actually have data to save (not just metadata)
+      const hasActualData = !!(
+        savePayload.creative || 
+        savePayload.copy || 
+        savePayload.location || 
+        savePayload.budget || 
+        savePayload.destination
+      )
 
-      // Only call save API if we have data to save
-      if (Object.keys(savePayload).length > 0) {
+      if (hasActualData) {
+        // Add metadata for tracking
+        savePayload.metadata = {
+          savedFrom: 'ad-builder-wizard',
+          editContext: 'draft-save',
+        }
+        
         console.log("[AdBuilder] Saving payload:", savePayload)
         
         const saveResponse = await fetch(`/api/v1/ads/${adId}/save`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify(savePayload),
         })
 
         if (!saveResponse.ok) {
-          const error = await saveResponse.json()
-          throw new Error(error.error || 'Failed to save ad data')
+          const errorData = await saveResponse.json()
+          console.error("[AdBuilder] Save failed:", errorData)
+          throw new Error(errorData.error || 'Failed to save ad data')
         }
 
         console.log("[AdBuilder] ✅ Saved ad data successfully")
+        toast.success("Ad saved as draft")
+      } else {
+        console.log("[AdBuilder] No data to save yet - just created draft ad")
+        toast.success("Draft ad created - fill in details and save again")
       }
       
-      toast.success("Ad saved as draft")
-      
-      // Redirect to ads list page within campaign
-      router.push(`/${campaign.id}?view=all-ads`)
+      // Redirect to ads list page within campaign (if campaign exists)
+      if (finalCampaignId || campaign?.id) {
+        router.push(`/lovable?view=all-ads`)
+      }
     } catch (error) {
       console.error("Failed to save draft:", error)
       toast.error(error instanceof Error ? error.message : "Failed to save draft. Please try again.")
