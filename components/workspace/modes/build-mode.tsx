@@ -1,6 +1,6 @@
 /**
  * Feature: Build Mode Component
- * Purpose: Ad building interface with stepper and preview
+ * Purpose: Ad building interface with 6-step wizard
  * References:
  *  - Microservices: Extracted from campaign-workspace.tsx
  */
@@ -8,7 +8,7 @@
 "use client";
 
 import React from 'react';
-import { PreviewPanel } from '@/components/preview-panel';
+import { AdBuilder } from '@/components/ad-builder/ad-builder';
 
 import type { WorkspaceMode } from '@/lib/services/client/workspace-service-client';
 
@@ -22,12 +22,18 @@ export interface BuildModeProps {
 
 /**
  * Build Mode
- * Handles ad creation workflow
+ * Handles ad creation workflow with 6-step wizard:
+ * 1. Get Started (prompt input)
+ * 2. Creative & Copy
+ * 3. Target Location
+ * 4. Target Audience
+ * 5. Budget & Schedule
+ * 6. Review & Launch
  */
 export function BuildMode(props: BuildModeProps) {
   return (
     <div className="flex-1 h-full overflow-hidden">
-      <PreviewPanel />
+      <AdBuilder />
     </div>
   );
 }
