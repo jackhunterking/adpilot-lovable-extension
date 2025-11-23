@@ -191,9 +191,9 @@ export function AllAdsGrid({
       
       <div className="flex h-full flex-col overflow-hidden">
         {/* Header Section */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 bg-card/50 px-6 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3">
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold">All Ads</h2>
+            <h2 className="text-2xl font-semibold">All Ads</h2>
             <p className="text-sm text-muted-foreground">
               View and manage all your ad variations
             </p>

@@ -98,9 +98,9 @@ export default function IntegrationsPage() {
     <LovableLayout>
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">Integrations</h1>
-          <p className="text-muted-foreground mt-2">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold">Integrations</h2>
+          <p className="text-sm text-muted-foreground">
             Connect third-party services to enhance your advertising capabilities
           </p>
         </div>

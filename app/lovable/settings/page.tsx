@@ -16,9 +16,9 @@ export default function SettingsPage() {
   return (
     <LovableLayout>
       <div className="container mx-auto p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-2">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold">Settings</h2>
+          <p className="text-sm text-muted-foreground">
             Manage your account, billing, and preferences
           </p>
         </div>
