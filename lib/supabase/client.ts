@@ -10,46 +10,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-// CRITICAL: @supabase/ssr requires explicit cookie handlers for session persistence
-// Without this, setSession() succeeds but stores nothing (sessions don't persist)
+// Browser client automatically uses localStorage for session persistence
+// Custom cookie handlers are only needed for server-side clients (see server.ts)
+// This ensures sessions persist across page refreshes and browser restarts
 export const supabase = createBrowserClient<Database>(
   supabaseUrl,
-  supabaseAnonKey,
-  {
-    cookies: {
-      get(name: string) {
-        if (typeof document === 'undefined') return undefined
-        const value = `; ${document.cookie}`
-        const parts = value.split(`; ${name}=`)
-        if (parts.length === 2) {
-          return parts.pop()?.split(';').shift()
-        }
-        return undefined
-      },
-      set(name: string, value: string, options: any) {
-        if (typeof document === 'undefined') return
-        
-        let cookie = `${name}=${value}`
-        if (options?.maxAge) cookie += `; max-age=${options.maxAge}`
-        if (options?.path) cookie += `; path=${options.path}`
-        if (options?.domain) cookie += `; domain=${options.domain}`
-        if (options?.sameSite) cookie += `; samesite=${options.sameSite}`
-        if (options?.secure) cookie += '; secure'
-        
-        document.cookie = cookie
-        console.log('[SUPABASE-CLIENT] Cookie set:', name)
-      },
-      remove(name: string, options: any) {
-        if (typeof document === 'undefined') return
-        
-        let cookie = `${name}=; max-age=0`
-        if (options?.path) cookie += `; path=${options.path}`
-        if (options?.domain) cookie += `; domain=${options.domain}`
-        
-        document.cookie = cookie
-        console.log('[SUPABASE-CLIENT] Cookie removed:', name)
-      }
-    }
-  }
+  supabaseAnonKey
+  // No custom options needed - uses localStorage by default for session storage
 )
 
