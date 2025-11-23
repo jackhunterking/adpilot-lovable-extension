@@ -52,7 +52,7 @@ export class LovableConversionService implements LovableConversionServiceContrac
       const { data: campaign, error: campaignError } = await this.supabase
         .from('campaigns')
         .select('id, user_id')
-        .eq('metadata->>lovable_project_id', input.lovableProjectId)
+        .eq('lovable_project_id', input.lovableProjectId)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)

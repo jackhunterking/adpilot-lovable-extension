@@ -32,7 +32,7 @@ export function OverviewMode(props: OverviewModeProps) {
   
   // Use campaign's associated Lovable project ID if available
   // For now, we'll use the campaign ID as the project identifier
-  const lovableProjectId = campaign?.metadata?.lovable_project_id || props.campaignId;
+  const lovableProjectId = campaign?.lovable_project_id || props.campaignId;
 
   return (
     <div className="flex-1 h-full overflow-auto bg-background min-h-0">

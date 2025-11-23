@@ -314,7 +314,7 @@ export class LovableSyncService implements LovableSyncServiceContract {
         .from('campaigns')
         .select('*')
         .eq('user_id', userId)
-        .eq('metadata->>lovable_project_id', lovableProjectId)
+        .eq('lovable_project_id', lovableProjectId)
         .order('updated_at', { ascending: false });
 
       if (campaignError) {

@@ -276,7 +276,7 @@ export class LovableProjectService implements LovableProjectServiceContract {
         .from('campaigns')
         .select('id, status, created_at')
         .eq('user_id', userId)
-        .eq('metadata->>lovable_project_id', lovableProjectId);
+        .eq('lovable_project_id', lovableProjectId);
 
       if (campaignError) {
         return {
