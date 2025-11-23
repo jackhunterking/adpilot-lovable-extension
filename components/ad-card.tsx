@@ -153,8 +153,22 @@ export function AdCard({
           {/* Ad preview thumbnail with overlay icons */}
           <div className="aspect-square bg-muted relative overflow-hidden group">
             {(() => {
-              // Get the first available image from variations or single imageUrl
-              const imageUrl = ad.creative_data.imageVariations?.[0] || ad.creative_data.imageUrl
+              // Type casting to include setup_snapshot (API returns this field)
+              const adWithSnapshot = ad as AdVariant & { 
+                setup_snapshot?: { 
+                  creative?: { 
+                    imageUrl?: string
+                    imageVariations?: string[]
+                    baseImageUrl?: string
+                  } 
+                } 
+              }
+              
+              // Read from setup_snapshot (where API actually returns data)
+              const imageUrl = adWithSnapshot.setup_snapshot?.creative?.imageUrl 
+                || adWithSnapshot.setup_snapshot?.creative?.imageVariations?.[0]
+                || adWithSnapshot.setup_snapshot?.creative?.baseImageUrl
+                || null
               
               return imageUrl ? (
                 <Image
@@ -165,8 +179,15 @@ export function AdCard({
                   loading="lazy"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  <span className="text-sm">No image</span>
+                <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-muted/50">
+                  {isDraft ? (
+                    <>
+                      <span className="text-4xl mb-2">📝</span>
+                      <span className="text-xs">Draft - No Image</span>
+                    </>
+                  ) : (
+                    <span className="text-sm">No image</span>
+                  )}
                 </div>
               )
             })()}

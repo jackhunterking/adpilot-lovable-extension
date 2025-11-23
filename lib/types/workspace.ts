@@ -62,8 +62,57 @@ export interface AdVariant {
   status: AdStatus
   variant_type: 'original' | 'ab_test' | 'manual' | 'ai_generated'
   
-  // Creative data
-  creative_data: {
+  // Setup snapshot built from normalized tables (NEW ARCHITECTURE)
+  // API builds this from ad_creatives, ad_copy_variations, ad_target_locations, etc.
+  setup_snapshot?: {
+    creative?: {
+      imageUrl?: string
+      imageVariations?: string[]  // Array for backward compat
+      baseImageUrl?: string
+      selectedImageIndex?: number
+      format?: 'feed' | 'story' | 'reel'
+    }
+    copy?: {
+      headline?: string
+      primaryText?: string
+      description?: string
+      cta?: string
+      variations?: Array<{
+        headline: string
+        primaryText: string
+        description?: string
+        cta: string
+      }>
+      selectedCopyIndex?: number
+    }
+    location?: {
+      locations: Array<{
+        id: string
+        name: string
+        coordinates: [number, number]
+        radius?: number
+        type: string
+        mode: 'include' | 'exclude'
+      }>
+      status: string
+    }
+    destination?: {
+      type: string
+      data: Record<string, unknown>
+    } | null
+    budget?: {
+      dailyBudget: number
+      currency: string
+      schedule?: {
+        startTime?: string
+        endTime?: string
+        timezone?: string
+      }
+    } | null
+  } | null
+  
+  // DEPRECATED: Legacy creative_data field (keep for backward compat but prefer setup_snapshot)
+  creative_data?: {
     imageUrl?: string
     imageVariations?: string[]
     headline: string

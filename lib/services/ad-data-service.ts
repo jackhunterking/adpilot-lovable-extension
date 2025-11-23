@@ -532,15 +532,15 @@ export const adDataService = {
     )
 
     return {
-      creative: {
-        imageUrl: selectedCreative?.image_url,
+      // Handle empty creatives array (draft ads with no data)
+      creative: adData.creatives.length > 0 ? {
+        imageUrl: selectedCreative?.image_url || adData.creatives[0]?.image_url,
         imageVariations: adData.creatives.map((c) => c.image_url),
-        baseImageUrl: adData.creatives.find((c) => c.is_base_image)?.image_url,
-        selectedImageIndex: adData.creatives.findIndex(
-          (c) => c.id === adData.ad.selected_creative_id
-        ),
+        baseImageUrl: adData.creatives.find((c) => c.is_base_image)?.image_url || adData.creatives[0]?.image_url,
+        selectedImageIndex: selectedCreative ? 
+          adData.creatives.findIndex((c) => c.id === selectedCreative.id) : 0,
         format: selectedCreative?.creative_format || 'feed',
-      },
+      } : undefined,
       copy: {
         variations: adData.copyVariations.map((v) => ({
           headline: v.headline,

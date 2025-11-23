@@ -23,26 +23,44 @@ export interface CampaignAd {
     impressions?: number
     reach?: number
     results?: number
+    clicks?: number
+    ctr?: number
+    cpc?: number
   } | null
+  
   // Snapshot built from normalized tables (ad_creatives, ad_copy_variations, etc.)
-  setup_snapshot: {
+  // NOTE: Can be null or have undefined sections for draft ads with no data yet
+  setup_snapshot?: {
     creative?: {
-      imageUrl?: string
-      imageVariations?: string[]
-      baseImageUrl?: string
+      imageUrl?: string           // Primary selected image
+      imageVariations?: string[]  // All creatives as array (legacy compat)
+      baseImageUrl?: string       // Base/first creative
       selectedImageIndex?: number | null
-      format?: string
+      format?: 'feed' | 'story' | 'reel'
     }
     copy?: {
       headline?: string
       primaryText?: string
       description?: string
       cta?: string
-      variations?: unknown[]
+      variations?: Array<{
+        headline: string
+        primaryText: string
+        description?: string
+        cta: string
+      }>
       selectedCopyIndex?: number | null
     }
     location?: {
-      locations?: unknown[]
+      locations?: Array<{
+        id: string
+        name: string
+        coordinates: [number, number]
+        radius?: number
+        type: string
+        mode: 'include' | 'exclude'
+      }>
+      status?: string
     }
     destination?: {
       type?: string
@@ -51,11 +69,14 @@ export interface CampaignAd {
     budget?: {
       dailyBudget?: number
       currency?: string
-      startTime?: string | null
-      endTime?: string | null
-      timezone?: string | null
+      schedule?: {
+        startTime?: string | null
+        endTime?: string | null
+        timezone?: string | null
+      }
     } | null
   } | null
+  
   created_at: string
   updated_at: string
 }
