@@ -151,46 +151,11 @@ export async function PUT(
       hasBudget: !!body.budget
     })
 
-    // Note: Copy validation removed to allow saving incomplete drafts
-    // Validation occurs during publish, not during draft saves
+    // Note: All field-level validations removed to allow saving incomplete drafts
+    // Users can save partial progress at any time without field-level validation
+    // Complete data validation occurs during publish via /api/v1/ads/[id]/publish endpoint
 
-    // Validate creative data IF provided
-    if (body.creative) {
-      if (!body.creative.imageVariations || body.creative.imageVariations.length === 0) {
-        return NextResponse.json(
-          { success: false, error: 'Creative must include at least one image variation' } as SaveAdResponse,
-          { status: 400 }
-        )
-      }
-    }
-
-    // Validate destination data IF provided
-    if (body.destination) {
-      const validDestinationTypes = ['website', 'form', 'call']
-      if (!validDestinationTypes.includes(body.destination.type)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid destination type' } as SaveAdResponse,
-          { status: 400 }
-        )
-      }
-
-      // Validate type-specific destination fields
-      if (body.destination.type === 'website' && !body.destination.url) {
-        return NextResponse.json(
-          { success: false, error: 'Website destination requires url' } as SaveAdResponse,
-          { status: 400 }
-        )
-      }
-
-      if (body.destination.type === 'call' && !body.destination.phoneNumber) {
-        return NextResponse.json(
-          { success: false, error: 'Call destination requires phoneNumber' } as SaveAdResponse,
-          { status: 400 }
-        )
-      }
-    }
-
-    console.log(`[${traceId}] Validation passed, saving provided sections to normalized tables`)
+    console.log(`[${traceId}] Saving provided sections to normalized tables (no field validation for drafts)`)
 
     try {
       // 1. Save creative variations
