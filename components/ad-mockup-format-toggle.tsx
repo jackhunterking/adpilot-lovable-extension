@@ -89,3 +89,6 @@ export function AdMockupFormatToggle({
   )
 }
 
+// Also export as default for better compatibility
+export default AdMockupFormatToggle
+
