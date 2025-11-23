@@ -13,6 +13,7 @@ import { LovableAuthBlocker } from "./auth-blocker"
 import { AuthModal } from "@/components/auth/auth-modal"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
 import { useFullscreenMode } from "@/lib/context/fullscreen-mode-context"
+import { useCampaignContext } from "@/lib/context/campaign-context"
 import { Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -27,12 +28,14 @@ interface LovableLayoutProps {
 export function LovableLayout({ children, requireMeta = false }: LovableLayoutProps) {
   const { user } = useAuth()
   const { isFullscreen } = useFullscreenMode()
+  const { campaign, loadCampaign } = useCampaignContext()
   const [authStep, setAuthStep] = useState<AuthStep>('checking')
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [metaModalOpen, setMetaModalOpen] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [campaignId, setCampaignId] = useState<string | null>(null)
   const [lovableProjectId, setLovableProjectId] = useState<string | null>(null)
+  const [loadingCampaign, setLoadingCampaign] = useState(false)
 
   // Listen for project context from extension (via postMessage)
   useEffect(() => {
@@ -102,6 +105,74 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
     }
   }, [])
 
+  // Load campaign when we have lovableProjectId
+  useEffect(() => {
+    async function loadCampaignFromProject() {
+      if (!user || !lovableProjectId || loadingCampaign) return
+      
+      // Check if we already have this campaign loaded in context
+      if (campaign && campaign.lovable_project_id === lovableProjectId) {
+        console.log('[LovableLayout] Campaign already loaded:', campaign.id)
+        setCampaignId(campaign.id)
+        return
+      }
+      
+      // Check sessionStorage
+      const existingCampaignId = sessionStorage.getItem('lovable_campaign_id')
+      const existingProjectId = sessionStorage.getItem('lovable_project_id')
+      
+      if (existingCampaignId && existingProjectId === lovableProjectId) {
+        console.log('[LovableLayout] Using existing campaign:', existingCampaignId)
+        setCampaignId(existingCampaignId)
+        return
+      }
+      
+      console.log('[LovableLayout] Loading campaign for project:', lovableProjectId)
+      setLoadingCampaign(true)
+      
+      try {
+        const response = await fetch(`/api/v1/lovable/projects/${lovableProjectId}/campaigns`, {
+          credentials: 'include'
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to load campaign data')
+        }
+        
+        const result = await response.json()
+        console.log('[LovableLayout] Campaign data loaded:', result)
+        
+        if (result.success && result.data?.campaigns?.length > 0) {
+          // Use the first (most recent) campaign
+          const campaignData = result.data.campaigns[0]
+          console.log('[LovableLayout] Using existing campaign:', campaignData.id)
+          setCampaignId(campaignData.id)
+          sessionStorage.setItem('lovable_campaign_id', campaignData.id)
+          sessionStorage.setItem('lovable_project_id', lovableProjectId)
+        } else {
+          console.log('[LovableLayout] No campaigns found for project - will be auto-created when user creates first ad')
+          // Don't set campaignId - it will be created when user creates first ad
+        }
+      } catch (error) {
+        console.error('[LovableLayout] Error loading campaign:', error)
+        setAuthError('Failed to load campaign data. Please try again.')
+        setAuthStep('error')
+      } finally {
+        setLoadingCampaign(false)
+      }
+    }
+    
+    loadCampaignFromProject()
+  }, [user, lovableProjectId, loadingCampaign, campaign])
+  
+  // Load campaign into context when we have a campaignId
+  useEffect(() => {
+    if (campaignId && !campaign) {
+      console.log('[LovableLayout] Loading campaign into context:', campaignId)
+      loadCampaign(campaignId)
+    }
+  }, [campaignId, campaign, loadCampaign])
+
   // Check authentication flow - SIMPLIFIED (no campaign creation here)
   useEffect(() => {
     async function checkAuth() {
@@ -113,16 +184,13 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
         return
       }
 
-      // Step 2: Just store lovableProjectId - DON'T create campaign yet
-      // Campaign will be auto-created when user creates first ad
-      console.log('[LovableLayout] User authenticated, lovableProjectId:', lovableProjectId || 'none')
-      
-      // Just check if campaign exists (don't create)
-      const existingCampaignId = sessionStorage.getItem('lovable_campaign_id')
-      if (existingCampaignId) {
-        console.log('[LovableLayout] Using existing campaign:', existingCampaignId)
-        setCampaignId(existingCampaignId)
+      // Step 2: Wait for campaign to be loaded if we have a lovableProjectId
+      if (lovableProjectId && !campaignId && loadingCampaign) {
+        // Still loading campaign, wait
+        return
       }
+      
+      console.log('[LovableLayout] User authenticated, campaignId:', campaignId || 'none')
 
       // Step 3: Check Meta connection (if required)
       if (requireMeta && campaignId) {
@@ -139,7 +207,7 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
     }
 
     checkAuth()
-  }, [user, requireMeta, campaignId, lovableProjectId])
+  }, [user, requireMeta, campaignId, lovableProjectId, loadingCampaign])
 
   const checkMetaConnection = async (cid: string): Promise<boolean> => {
     try {
