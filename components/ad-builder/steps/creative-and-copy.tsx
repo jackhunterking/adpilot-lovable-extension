@@ -2,44 +2,59 @@
 
 /**
  * Step 2: Creative & Copy
- * Purpose: Select ad images and write compelling copy with live preview
+ * Purpose: Generate and edit ad images and copy with AI assistance
+ * Layout: Chat-style interface with content at top, AI input at bottom
  */
 
-import { useState, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageSquare, Upload, X, Info } from "lucide-react"
-import { triggerLovableAI } from "@/lib/utils/trigger-lovable-ai"
+import { ImageIcon, Type, X, Sparkles, Upload } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { AdDraft, AdBuilderStepProps } from "@/lib/types/ad-builder"
+import type { AdBuilderStepProps } from "@/lib/types/ad-builder"
 import { AdMockupFormatToggle } from "@/components/ad-mockup-format-toggle"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { AdMockup } from "@/components/ad-mockup"
-import { PromptInputWithAttachments } from "@/components/lovable/prompt-input-with-attachments"
-import type { AttachedImage } from "@/components/lovable/image-attachment-input"
 import { toast } from "sonner"
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputTextarea,
+  PromptInputFooter,
+  PromptInputTools,
+  PromptInputSubmit,
+  PromptInputAttachments,
+  PromptInputAttachment,
+  PromptInputActionMenu,
+  PromptInputActionMenuTrigger,
+  PromptInputActionMenuContent,
+  PromptInputActionAddAttachments,
+  type PromptInputMessage,
+} from "@/components/ai-elements/prompt-input"
 
 type CreativeAndCopyProps = AdBuilderStepProps
 
 export function CreativeAndCopy({ draft, onUpdate }: CreativeAndCopyProps) {
-  const [isDragging, setIsDragging] = useState(false)
+  const [activeTab, setActiveTab] = useState<'image' | 'copy'>('image')
   
-  // Read directly from draft (single source of truth)
+  // Read from draft
   const images = draft.creative?.images || []
   const headline = draft.creative?.headline || ""
   const primaryText = draft.creative?.primaryText || ""
   const description = draft.creative?.description || ""
   const callToAction = draft.creative?.callToAction || "Learn More"
-  
-  // Get product context from draft (provided in Get Started step)
   const productContext = draft.productContext || ""
-
-  // Validation: All required fields filled
-  const isValid = headline.trim().length > 0 && primaryText.trim().length > 0
+  const goal = draft.goal || "signups"
+  
+  // Validation
+  const hasImage = images.length > 0
+  const hasCopy = headline.trim().length > 0 && primaryText.trim().length > 0
+  const isValid = hasImage && hasCopy
   
   // Helper to update creative fields
   const updateCreative = (updates: Partial<typeof draft.creative>) => {
@@ -55,79 +70,60 @@ export function CreativeAndCopy({ draft, onUpdate }: CreativeAndCopyProps) {
     })
   }
 
-  const handleSendPrompt = async (prompt: string, attachedImages: AttachedImage[]) => {
-    // Build the full prompt with product context
-    const fullPrompt = productContext 
-      ? `Generate a Facebook ad image based on this product: ${productContext}.\n\nUser request: ${prompt}\n\nRequirements:\n- Style: modern, professional\n- Create both square (1080x1080) and vertical (1080x1920) formats`
-      : `${prompt}\n\nRequirements:\n- Style: modern, professional\n- Create both square (1080x1080) and vertical (1080x1920) formats`
+  // Handle AI image generation
+  const handleImageAISubmit = async (message: PromptInputMessage) => {
+    const prompt = message.text || ""
+    const attachedFiles = message.files || []
+    
+    const fullPrompt = `Generate a Facebook ad image for: ${productContext}
+Goal: ${goal === 'signups' ? 'Get signups and leads' : goal}
 
-    // Note: In main ad builder (not iframe), this opens Lovable in new tab
-    // User will manually download and upload generated images
-    triggerLovableAI({
-      prompt: fullPrompt,
-      images: attachedImages.map(img => img.dataUrl), // Pass base64 for reference
-      context: { 
-        feature: "ad-image-generation-main-builder",
-        productContext,
-        dualFormat: true,
-      },
-      toastMessage: "Opening Lovable AI... You can download generated images and upload them here.",
-    })
+User request: ${prompt}
 
-    // Show instruction toast
-    toast.info("Lovable AI will generate your images", {
-      description: "Once generated, download them and upload here using the + button",
-      duration: 6000,
+Requirements:
+- Professional, eye-catching design
+- Square (1080x1080) and Vertical (1080x1920) formats
+- Modern, clean aesthetic`
+    
+    toast.info("AI is generating your image...", {
+      description: "This may take a few seconds",
+      duration: 3000,
     })
+    
+    console.log('Image AI Prompt:', fullPrompt, 'References:', attachedFiles)
+    
+    // TODO: Call your AI image generation service
+    // For now, mock implementation
   }
 
-  const handleGenerateCopy = () => {
-    const prompt = `Write Facebook ad copy for this product: ${productContext}. Goal: Drive signups. Tone: professional and persuasive. Provide variations for headline (max 40 chars), primary text (max 125 chars), and description (max 30 chars).`
+  // Handle AI copy generation
+  const handleCopyAISubmit = async (message: PromptInputMessage) => {
+    const prompt = message.text || ""
+    
+    const fullPrompt = `Write Facebook ad copy for: ${productContext}
+Goal: ${goal === 'signups' ? 'Get signups and leads' : goal}
+Call-to-action: ${callToAction}
 
-    triggerLovableAI({
-      prompt,
-      context: { 
-        feature: "ad-copy-generation",
-        productContext,
-      },
-      toastMessage: "AI is writing your ad copy...",
+User request: ${prompt}
+
+Requirements:
+- Headline: Max 40 characters, attention-grabbing
+- Primary Text: Max 125 characters, compelling and clear
+- Description: Max 30 characters, concise value prop
+- Tone: Professional yet conversational`
+    
+    toast.info("AI is writing your copy...", {
+      description: "Generating headline, text, and description",
+      duration: 3000,
     })
+    
+    console.log('Copy AI Prompt:', fullPrompt)
+    
+    // TODO: Call your AI copy generation service
+    // For now, mock implementation
   }
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"))
-
-    if (imageFiles.length > 0) {
-      // Convert to data URLs (for demo - in production, upload to storage)
-      imageFiles.forEach((file) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const url = e.target?.result as string
-          if (url && images.length < 3) {
-            const newImages = [...images, url].slice(0, 3)
-            updateCreative({ images: newImages })
-          }
-        }
-        reader.readAsDataURL(file)
-      })
-    }
-  }, [images, updateCreative])
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleManualImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     const imageFiles = files.filter((file) => file.type.startsWith("image/"))
 
@@ -136,8 +132,7 @@ export function CreativeAndCopy({ draft, onUpdate }: CreativeAndCopyProps) {
       reader.onload = (e) => {
         const url = e.target?.result as string
         if (url && images.length < 3) {
-          const newImages = [...images, url].slice(0, 3)
-          updateCreative({ images: newImages })
+          updateCreative({ images: [...images, url].slice(0, 3) })
         }
       }
       reader.readAsDataURL(file)
@@ -145,197 +140,271 @@ export function CreativeAndCopy({ draft, onUpdate }: CreativeAndCopyProps) {
   }
 
   const handleRemoveImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index)
-    updateCreative({ images: newImages })
+    updateCreative({ images: images.filter((_, i) => i !== index) })
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left Column: Input Controls */}
-      <div className="space-y-6">
-        {/* Image Upload Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ad Image</CardTitle>
-            <CardDescription>Upload an image or describe what you want to create</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* New Prompt Input with Attachments */}
-            <PromptInputWithAttachments
-              onSend={handleSendPrompt}
-              placeholder="Describe the image you want to create (e.g., 'Modern tech startup hero image with blue gradient')"
-              maxLength={500}
-            />
+      {/* Left Column: Chat-Style Interface */}
+      <div className="space-y-4">
+        {/* Tab Headers */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'image' | 'copy')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="image" className="gap-2">
+              <ImageIcon className="w-4 h-4" />
+              Ad Image
+              {hasImage && <span className="ml-1 text-xs">✓</span>}
+            </TabsTrigger>
+            <TabsTrigger value="copy" className="gap-2">
+              <Type className="w-4 h-4" />
+              Ad Copy
+              {hasCopy && <span className="ml-1 text-xs">✓</span>}
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  💡 Click + to attach reference images, then describe what you want. AI will open in a new tab. Download the generated images and upload them using the + button.
-                </p>
-              </div>
-            </div>
-
-            {/* Manual Upload Section */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or Upload Directly</span>
-              </div>
-            </div>
-
-            {/* Drag & Drop Zone (Smaller, secondary) */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={cn(
-                "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25 hover:border-muted-foreground/50"
-              )}
-              onClick={() => document.getElementById("file-input")?.click()}
-            >
-              <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-xs font-medium mb-1">
-                Drop image here or click to upload
-              </p>
-              <p className="text-xs text-muted-foreground">
-                PNG, JPG up to 10MB (max 3 images)
-              </p>
-              <input
-                id="file-input"
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleFileInput}
-              />
-            </div>
-
-            {/* Image Thumbnails */}
-            {images.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {images.map((img, idx) => (
-                  <div key={idx} className="relative aspect-video bg-muted rounded-lg overflow-hidden group">
-                    <img src={img} alt={`Ad ${idx + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemoveImage(idx)
-                      }}
-                      className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+          {/* IMAGE TAB - Content at Top, Input at Bottom */}
+          <TabsContent value="image" className="mt-4">
+            <Card className="flex flex-col" style={{ minHeight: '500px' }}>
+              {/* TOP: Generated Images or Empty State */}
+              <CardContent className="flex-1 pt-6 pb-4">
+                {images.length > 0 ? (
+                  // Has Images
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold">Your Images</Label>
+                      <span className="text-xs text-muted-foreground">{images.length}/3</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {images.map((img, idx) => (
+                        <div key={idx} className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
+                          <img src={img} alt={`Ad ${idx + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => handleRemoveImage(idx)}
+                            className="absolute top-1.5 right-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Manual Upload Option */}
+                    {images.length < 3 && (
+                      <>
+                        <div className="relative my-4">
+                          <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-card px-3 text-muted-foreground">Add More</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => document.getElementById("manual-upload")?.click()}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Image
+                        </Button>
+                      </>
+                    )}
                   </div>
-                ))}
+                ) : (
+                  // Empty State
+                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center space-y-4">
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                      <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">No images yet</h3>
+                      <p className="text-sm text-muted-foreground max-w-xs">
+                        Use AI below to generate images or upload your own
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => document.getElementById("manual-upload")?.click()}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Image
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+
+              {/* BOTTOM: AI Prompt Input */}
+              <div className="border-t bg-muted/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium">Generate with AI</span>
+                </div>
+                
+                <PromptInput
+                  onSubmit={handleImageAISubmit}
+                  accept="image/*"
+                  multiple
+                  maxFiles={3}
+                  maxFileSize={10 * 1024 * 1024}
+                  onError={(err) => toast.error(err.message)}
+                >
+                  <PromptInputBody>
+                    <PromptInputAttachments>
+                      {(attachment) => <PromptInputAttachment data={attachment} />}
+                    </PromptInputAttachments>
+                    <PromptInputTextarea
+                      placeholder="Describe your ad image... (e.g., 'Modern workspace with laptop, blue gradient')"
+                      className="min-h-[80px]"
+                    />
+                  </PromptInputBody>
+                  <PromptInputFooter>
+                    <PromptInputTools>
+                      <PromptInputActionMenu>
+                        <PromptInputActionMenuTrigger />
+                        <PromptInputActionMenuContent>
+                          <PromptInputActionAddAttachments label="Attach references" />
+                        </PromptInputActionMenuContent>
+                      </PromptInputActionMenu>
+                    </PromptInputTools>
+                    <PromptInputSubmit />
+                  </PromptInputFooter>
+                </PromptInput>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </Card>
+          </TabsContent>
 
-        {/* Copy Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ad Copy</CardTitle>
-            <CardDescription>Write compelling text for your ad</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="headline">
-                Headline <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="headline"
-                value={headline}
-                onChange={(e) => updateCreative({ headline: e.target.value })}
-                placeholder="Grab attention with a powerful headline"
-                maxLength={40}
-              />
-              <p className="text-xs text-muted-foreground">{headline.length}/40 characters</p>
-            </div>
+          {/* COPY TAB - Content at Top, Input at Bottom */}
+          <TabsContent value="copy" className="mt-4">
+            <Card className="flex flex-col" style={{ minHeight: '500px' }}>
+              {/* TOP: Copy Fields or Empty State */}
+              <CardContent className="flex-1 pt-6 pb-4">
+                {hasCopy ? (
+                  // Has Copy - Show Fields
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="headline" className="text-sm">
+                        Headline <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="headline"
+                        value={headline}
+                        onChange={(e) => updateCreative({ headline: e.target.value })}
+                        placeholder="Grab attention"
+                        maxLength={40}
+                      />
+                      <p className="text-xs text-muted-foreground text-right">{headline.length}/40</p>
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="primaryText">
-                Primary Text <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="primaryText"
-                value={primaryText}
-                onChange={(e) => updateCreative({ primaryText: e.target.value })}
-                placeholder="Tell your story and explain what makes your offer special"
-                rows={4}
-                maxLength={125}
-              />
-              <p className="text-xs text-muted-foreground">{primaryText.length}/125 characters</p>
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="primaryText" className="text-sm">
+                        Primary Text <span className="text-destructive">*</span>
+                      </Label>
+                      <Textarea
+                        id="primaryText"
+                        value={primaryText}
+                        onChange={(e) => updateCreative({ primaryText: e.target.value })}
+                        placeholder="Tell your story"
+                        rows={4}
+                        maxLength={125}
+                        className="resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground text-right">{primaryText.length}/125</p>
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                value={description}
-                onChange={(e) => updateCreative({ description: e.target.value })}
-                placeholder="Additional details about your offer"
-                maxLength={30}
-              />
-              <p className="text-xs text-muted-foreground">{description.length}/30 characters</p>
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="text-sm">Description (optional)</Label>
+                      <Input
+                        id="description"
+                        value={description}
+                        onChange={(e) => updateCreative({ description: e.target.value })}
+                        placeholder="Additional details"
+                        maxLength={30}
+                      />
+                      <p className="text-xs text-muted-foreground text-right">{description.length}/30</p>
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cta">Call to Action <span className="text-destructive">*</span></Label>
-              <Select value={callToAction} onValueChange={(value) => updateCreative({ callToAction: value })}>
-                <SelectTrigger id="cta">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sign Up">Sign Up</SelectItem>
-                  <SelectItem value="Learn More">Learn More</SelectItem>
-                  <SelectItem value="Get Started">Get Started</SelectItem>
-                  <SelectItem value="Shop Now">Shop Now</SelectItem>
-                  <SelectItem value="Download">Download</SelectItem>
-                  <SelectItem value="Get Quote">Get Quote</SelectItem>
-                  <SelectItem value="Contact Us">Contact Us</SelectItem>
-                  <SelectItem value="Apply Now">Apply Now</SelectItem>
-                  <SelectItem value="Book Now">Book Now</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cta" className="text-sm">Call to Action <span className="text-destructive">*</span></Label>
+                      <Select value={callToAction} onValueChange={(value) => updateCreative({ callToAction: value })}>
+                        <SelectTrigger id="cta">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Sign Up">Sign Up</SelectItem>
+                          <SelectItem value="Learn More">Learn More</SelectItem>
+                          <SelectItem value="Get Started">Get Started</SelectItem>
+                          <SelectItem value="Shop Now">Shop Now</SelectItem>
+                          <SelectItem value="Download">Download</SelectItem>
+                          <SelectItem value="Get Quote">Get Quote</SelectItem>
+                          <SelectItem value="Contact Us">Contact Us</SelectItem>
+                          <SelectItem value="Apply Now">Apply Now</SelectItem>
+                          <SelectItem value="Book Now">Book Now</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  // Empty State
+                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center space-y-4">
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                      <Type className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">No copy yet</h3>
+                      <p className="text-sm text-muted-foreground max-w-xs">
+                        Use AI below to generate compelling ad copy
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
 
-            {/* AI Generate Copy Button */}
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={handleGenerateCopy}
-            >
-              <MessageSquare className="w-4 h-4" />
-              💬 Write Copy with AI
-            </Button>
-
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  The AI will generate copy. Paste it here once ready.
-                </p>
+              {/* BOTTOM: AI Prompt Input */}
+              <div className="border-t bg-muted/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-purple-500 to-pink-600">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium">Generate with AI</span>
+                </div>
+                
+                <PromptInput
+                  onSubmit={handleCopyAISubmit}
+                  onError={(err) => toast.error(err.message)}
+                >
+                  <PromptInputBody>
+                    <PromptInputTextarea
+                      placeholder="Write copy for... (e.g., 'Emphasize ease of use, free trial, target busy professionals')"
+                      className="min-h-[80px]"
+                    />
+                  </PromptInputBody>
+                  <PromptInputFooter>
+                    <div className="flex-1" />
+                    <PromptInputSubmit />
+                  </PromptInputFooter>
+                </PromptInput>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <input
+          id="manual-upload"
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleManualImageUpload}
+        />
       </div>
 
-      {/* Right Column: Live Ad Preview */}
+      {/* Right Column: Live Preview */}
       <div className="lg:sticky lg:top-6 h-fit">
         <Card>
-          <CardHeader>
-            <CardTitle>Live Preview</CardTitle>
-            <CardDescription>See how your ad will look on Facebook</CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <LiveAdPreview
               image={images[0]}
               headline={headline}
@@ -346,11 +415,13 @@ export function CreativeAndCopy({ draft, onUpdate }: CreativeAndCopyProps) {
           </CardContent>
         </Card>
 
-        {/* Validation Message */}
-        {!isValid && (
-          <div className="mt-6 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+        {/* Validation */}
+        {(!hasImage || !hasCopy) && (
+          <div className="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              ⚠️ Headline and primary text are required to continue
+              {!hasImage && !hasCopy && "⚠️ Add image and copy to continue"}
+              {hasImage && !hasCopy && "⚠️ Add copy to continue"}
+              {!hasImage && hasCopy && "⚠️ Add image to continue"}
             </p>
           </div>
         )}
@@ -379,17 +450,14 @@ function LiveAdPreview({
   description,
   callToAction,
 }: LiveAdPreviewProps) {
-  // Get format state from context (for Lovable extension dual format support)
   const { selectedFormat, setSelectedFormat, adContent } = useAdPreview()
   
-  // Get the correct image URL based on selected format
   const currentImage = selectedFormat === 'square' 
     ? (adContent?.imageUrlSquare || image)
     : (adContent?.imageUrlVertical || image)
   
   return (
     <div className="max-w-sm mx-auto space-y-4">
-      {/* Format Toggle - Square vs Vertical */}
       <div className="flex justify-center">
         <AdMockupFormatToggle
           selectedFormat={selectedFormat}
@@ -397,85 +465,20 @@ function LiveAdPreview({
         />
       </div>
       
-      {/* Use AdMockup component for consistent rendering */}
       <AdMockup
         format={selectedFormat}
         imageUrl={currentImage}
         brandName="Your Business"
-        primaryText={primaryText || "Your primary text will appear here..."}
-        headline={headline || "Your headline..."}
+        primaryText={primaryText || "Your text here..."}
+        headline={headline || "Headline..."}
         description={description}
         ctaText={callToAction || "Learn More"}
         showEngagement={true}
       />
       
-      {/* Legacy mockup kept as backup (hidden) */}
-      <div className="hidden border border-border rounded-lg overflow-hidden bg-background">
-        {/* Header */}
-        <div className="flex items-center gap-2 p-3 border-b border-border">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-            YB
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Your Business</p>
-            <p className="text-xs text-muted-foreground">Sponsored</p>
-          </div>
-        </div>
-
-        {/* Primary Text */}
-        <div className="p-3">
-          <p className="text-sm whitespace-pre-wrap">
-            {primaryText || (
-              <span className="text-muted-foreground italic">
-                Your primary text will appear here...
-              </span>
-            )}
-          </p>
-        </div>
-
-        {/* Image */}
-        <div className="bg-muted aspect-[1.91/1] relative">
-          {image ? (
-            <img src={image} alt="Ad preview" className="w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <Upload className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">No image yet</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Link Card */}
-        <div className="bg-muted/50 p-3 border-t border-border">
-          <p className="font-semibold text-sm mb-0.5">
-            {headline || (
-              <span className="text-muted-foreground italic">Your headline...</span>
-            )}
-          </p>
-          {description && (
-            <p className="text-xs text-muted-foreground mb-2">{description}</p>
-          )}
-          <p className="text-xs text-muted-foreground">yourwebsite.com</p>
-        </div>
-
-        {/* Actions */}
-        <div className="p-3 border-t border-border flex gap-2">
-          <Button size="sm" className="flex-1">
-            {callToAction || "Learn More"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Preview Info */}
-      <p className="text-xs text-muted-foreground text-center">
-        Mobile preview • Updates in real-time
-      </p>
       <p className="text-xs text-muted-foreground text-center">
         {selectedFormat === 'square' ? '📱 Square (1080x1080)' : '📲 Vertical (1080x1920)'}
       </p>
     </div>
   )
 }
-

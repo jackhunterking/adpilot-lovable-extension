@@ -7,7 +7,12 @@
  */
 export interface AdDraft {
   /**
-   * Step 1: Get Started - Product context for AI
+   * Step 1: Get Started - Campaign goal selection
+   */
+  goal?: 'signups' | 'traffic' | 'calls'
+  
+  /**
+   * Product context for AI (optional, for future use)
    */
   productContext?: string
 
