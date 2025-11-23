@@ -32,6 +32,75 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
   const [metaModalOpen, setMetaModalOpen] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [campaignId, setCampaignId] = useState<string | null>(null)
+  const [lovableProjectId, setLovableProjectId] = useState<string | null>(null)
+
+  // Listen for project context from extension (via postMessage)
+  useEffect(() => {
+    console.log('[LovableLayout] Setting up postMessage listener')
+    
+    // Check if context already in sessionStorage
+    try {
+      const existingContext = sessionStorage.getItem('adpilot_lovable_context')
+      if (existingContext) {
+        const parsed = JSON.parse(existingContext)
+        console.log('[LovableLayout] Found existing context:', parsed)
+        setLovableProjectId(parsed.lovableProjectId)
+      }
+    } catch (err) {
+      console.error('[LovableLayout] Error parsing existing context:', err)
+    }
+    
+    // Listen for project context from extension
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'ADPILOT_PROJECT_CONTEXT') {
+        console.log('[LovableLayout] Project context received:', event.data.payload)
+        
+        const { lovableProjectId: projectId } = event.data.payload
+        
+        // Store in sessionStorage
+        sessionStorage.setItem('adpilot_lovable_context', JSON.stringify(event.data.payload))
+        
+        // Update state
+        setLovableProjectId(projectId)
+        console.log('[LovableLayout] ✅ Project ID set:', projectId)
+      }
+    }
+    
+    window.addEventListener('message', handleMessage)
+    
+    // Request context from extension
+    console.log('[LovableLayout] Requesting project context from extension...')
+    window.parent.postMessage({
+      type: 'ADPILOT_REQUEST_CONTEXT',
+      timestamp: Date.now()
+    }, '*')
+    
+    // Retry mechanism
+    let retries = 0
+    const retryInterval = setInterval(() => {
+      if (sessionStorage.getItem('adpilot_lovable_context')) {
+        clearInterval(retryInterval)
+        return
+      }
+      
+      if (retries < 5) {
+        console.log('[LovableLayout] Retrying context request...', retries + 1)
+        window.parent.postMessage({
+          type: 'ADPILOT_REQUEST_CONTEXT',
+          timestamp: Date.now()
+        }, '*')
+        retries++
+      } else {
+        clearInterval(retryInterval)
+        console.warn('[LovableLayout] ⚠️ Failed to receive context after 5 retries')
+      }
+    }, 2000)
+    
+    return () => {
+      window.removeEventListener('message', handleMessage)
+      clearInterval(retryInterval)
+    }
+  }, [])
 
   // Check authentication flow
   useEffect(() => {
@@ -44,14 +113,64 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
         return
       }
 
-      // Step 2: Get or create campaign
+      // Step 2: Get or create campaign (with lovableProjectId support)
       try {
         const existingCampaignId = sessionStorage.getItem('lovable_campaign_id')
         
         if (existingCampaignId) {
+          console.log('[LovableLayout] Using existing campaign:', existingCampaignId)
           setCampaignId(existingCampaignId)
+        } else if (lovableProjectId) {
+          // NEW: Auto-link project and create campaign via new API
+          console.log('[LovableLayout] Auto-linking project and creating campaign:', lovableProjectId)
+          
+          // First, link the project
+          try {
+            await fetch('/api/v1/lovable/projects/link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                lovableProjectId: lovableProjectId,
+                metadata: { 
+                  auto_linked: true, 
+                  timestamp: Date.now(),
+                  source: 'lovable_layout'
+                }
+              })
+            })
+            console.log('[LovableLayout] ✅ Project linked')
+          } catch (linkErr) {
+            console.error('[LovableLayout] Project linking error:', linkErr)
+            // Continue anyway - might already be linked
+          }
+          
+          // Create campaign via API with lovableProjectId
+          const response = await fetch('/api/v1/campaigns', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              name: `Campaign for project ${lovableProjectId}`,
+              initial_goal: 'leads',
+              lovableProjectId: lovableProjectId
+            })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            const newCampaignId = data.data?.campaign?.id
+            if (newCampaignId) {
+              console.log('[LovableLayout] ✅ Campaign created with project link:', newCampaignId)
+              setCampaignId(newCampaignId)
+              sessionStorage.setItem('lovable_campaign_id', newCampaignId)
+            }
+          } else {
+            console.error('[LovableLayout] Failed to create campaign:', await response.text())
+          }
         } else {
-          // Create campaign via API
+          // Fallback: Create campaign without project ID (old way)
+          console.log('[LovableLayout] No project ID yet, creating campaign old way')
           const response = await fetch('/api/v1/campaigns', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -90,7 +209,7 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
     }
 
     checkAuth()
-  }, [user, requireMeta, campaignId])
+  }, [user, requireMeta, campaignId, lovableProjectId])
 
   const checkMetaConnection = async (cid: string): Promise<boolean> => {
     try {

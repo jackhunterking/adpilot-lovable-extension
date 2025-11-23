@@ -31,9 +31,25 @@ export interface BuildModeProps {
  * 6. Review & Launch
  */
 export function BuildMode(props: BuildModeProps) {
+  // Get lovableProjectId from sessionStorage (set by LovableLayout)
+  const [lovableProjectId, setLovableProjectId] = React.useState<string | undefined>(undefined)
+  
+  React.useEffect(() => {
+    try {
+      const context = sessionStorage.getItem('adpilot_lovable_context')
+      if (context) {
+        const parsed = JSON.parse(context)
+        setLovableProjectId(parsed.lovableProjectId)
+        console.log('[BuildMode] Loaded project ID:', parsed.lovableProjectId)
+      }
+    } catch (err) {
+      console.error('[BuildMode] Error loading context:', err)
+    }
+  }, [])
+  
   return (
     <div className="flex-1 h-full overflow-hidden">
-      <AdBuilder />
+      <AdBuilder lovableProjectId={lovableProjectId} />
     </div>
   );
 }

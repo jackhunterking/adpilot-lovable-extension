@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Invalid request body')
     }
     
-    const { name, tempPromptId, prompt, goalType } = body as { name?: string; tempPromptId?: string; prompt?: string; goalType?: string }
+    const { name, tempPromptId, prompt, goalType, lovableProjectId } = body as { name?: string; tempPromptId?: string; prompt?: string; goalType?: string; lovableProjectId?: string }
 
     // Normalize provided name; treat empty/whitespace as missing to trigger auto-naming
     const requestedName = typeof name === 'string' && name.trim().length > 0 ? name.trim() : null
@@ -156,6 +156,7 @@ export async function POST(request: NextRequest) {
             status: 'draft',
             metadata,
             initial_goal: initialGoal || null,
+            lovable_project_id: lovableProjectId || null,
           })
           .select()
           .single()
@@ -245,6 +246,7 @@ export async function POST(request: NextRequest) {
         status: 'draft',
         metadata,
         initial_goal: initialGoal || null,
+        lovable_project_id: lovableProjectId || null,
       })
       .select()
       .single()
