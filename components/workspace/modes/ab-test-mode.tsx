@@ -38,7 +38,7 @@ export function ABTestMode(props: ABTestModeProps) {
   }
 
   return (
-    <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
+    <div className="flex-1 h-full overflow-hidden bg-background min-h-0">
       <ABTestBuilder
         campaign_id={props.campaignId}
         current_variant={currentVariant as import('@/lib/types/workspace').AdVariant}

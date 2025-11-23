@@ -33,8 +33,8 @@ export function OverviewMode(props: OverviewModeProps) {
   const lovableProjectId = campaign?.metadata?.lovable_project_id || props.campaignId;
 
   return (
-    <div className="flex-1 h-full overflow-auto bg-muted border border-border rounded-tl-lg min-h-0 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="flex-1 h-full overflow-auto bg-background min-h-0">
+      <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">Overview</h2>

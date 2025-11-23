@@ -50,7 +50,7 @@ export function AllAdsMode(props: AllAdsModeProps) {
   };
 
   return (
-    <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
+    <div className="flex-1 h-full overflow-hidden bg-background min-h-0">
       <AllAdsGrid
         ads={props.ads as import('@/lib/types/workspace').AdVariant[]}
         campaignId={props.campaignId}

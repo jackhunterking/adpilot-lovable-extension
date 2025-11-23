@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, Settings, Megaphone, Zap } from "lucide-react"
+import { LayoutDashboard, TrendingUp, Megaphone, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -14,8 +14,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, url: "/lovable?view=overview" },
   { label: "Ads", icon: Megaphone, url: "/lovable?view=all-ads" },
-  { label: "Integrations", icon: Zap, url: "/lovable/campaigns" },
-  { label: "Settings", icon: Settings, url: "/lovable/analytics" },
+  { label: "Integrations", icon: Zap, url: "/lovable/integrations" },
+  { label: "Analytics", icon: TrendingUp, url: "/lovable/analytics" },
 ]
 
 export function AppSidebar() {
@@ -50,9 +50,11 @@ export function AppSidebar() {
             const itemPathname = urlObj.pathname
             
             // For Overview and Ads (items with view param), check both pathname and view param
+            // Special case: When on /lovable with no view param, treat as Overview (default)
             // For other items (Integrations, Settings), just check pathname
             const isActive = itemViewParam 
-              ? (pathname === itemPathname && currentViewParam === itemViewParam)
+              ? (pathname === itemPathname && currentViewParam === itemViewParam) ||
+                (pathname === '/lovable' && !currentViewParam && item.label === 'Overview')
               : pathname === item.url
             
             return (

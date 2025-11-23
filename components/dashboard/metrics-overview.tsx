@@ -35,21 +35,30 @@ export function MetricsOverview({ lovableProjectId }: MetricsOverviewProps) {
       )
 
       if (!response.ok) {
-        throw new Error("Failed to fetch metrics")
+        // Gracefully handle 404 or other errors
+        console.warn("Metrics API not available, showing placeholder")
+        setMetrics({
+          totalImpressions: 0,
+          totalClicks: 0,
+          totalConversions: 0,
+          totalSpend: 0,
+        })
+        setError(null) // Don't show error, just show zeros
+        return
       }
 
       const data = await response.json()
       setMetrics(data)
     } catch (err) {
-      console.error("Error fetching metrics:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch metrics")
-      // Set default values on error
+      console.warn("Error fetching metrics, showing placeholder:", err)
+      // Set default values on error - don't show error message
       setMetrics({
         totalImpressions: 0,
         totalClicks: 0,
         totalConversions: 0,
         totalSpend: 0,
       })
+      setError(null) // Gracefully handle by showing zeros instead of error
     } finally {
       setLoading(false)
     }
@@ -97,18 +106,11 @@ export function MetricsOverview({ lovableProjectId }: MetricsOverviewProps) {
         />
       </div>
 
-      {error && (
-        <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-4">
-          {error}
-        </div>
-      )}
-
       {/* Additional Info */}
       {!loading && metrics && (
         <div className="text-sm text-muted-foreground">
           <p>
-            Data aggregated from all ads in this project. Last updated:{" "}
-            {new Date().toLocaleTimeString()}
+            Campaign metrics will appear here once ads are published and generating data.
           </p>
         </div>
       )}

@@ -142,7 +142,7 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {metrics.totalImpressions.toLocaleString()}
+                    {metrics?.totalImpressions?.toLocaleString() ?? '0'}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     People reached
@@ -159,10 +159,10 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {metrics.totalClicks.toLocaleString()}
+                    {metrics?.totalClicks?.toLocaleString() ?? '0'}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {metrics.averageCtr.toFixed(2)}% CTR
+                    {metrics?.averageCtr?.toFixed(2) ?? '0.00'}% CTR
                   </p>
                 </CardContent>
               </Card>
@@ -176,10 +176,10 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    ${metrics.totalSpend.toFixed(2)}
+                    ${metrics?.totalSpend?.toFixed(2) ?? '0.00'}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    ${metrics.averageCpc.toFixed(2)} CPC
+                    ${metrics?.averageCpc?.toFixed(2) ?? '0.00'} CPC
                   </p>
                 </CardContent>
               </Card>
@@ -193,10 +193,12 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {metrics.totalConversions.toLocaleString()}
+                    {metrics?.totalConversions?.toLocaleString() ?? '0'}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2)}% conversion rate
+                    {metrics?.totalClicks && metrics.totalConversions 
+                      ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) 
+                      : '0.00'}% conversion rate
                   </p>
                 </CardContent>
               </Card>
@@ -251,7 +253,7 @@ export default function AnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {metrics.averageCtr > 2 && (
+                {metrics && metrics.averageCtr > 2 && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950">
                     <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -265,7 +267,7 @@ export default function AnalyticsPage() {
                   </div>
                 )}
 
-                {metrics.averageCpc < 1 && (
+                {metrics && metrics.averageCpc < 1 && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950">
                     <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -279,7 +281,7 @@ export default function AnalyticsPage() {
                   </div>
                 )}
 
-                {metrics.totalConversions === 0 && metrics.totalClicks > 50 && (
+                {metrics && metrics.totalConversions === 0 && metrics.totalClicks > 50 && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
                     <TrendingUp className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
