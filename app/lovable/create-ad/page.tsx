@@ -11,8 +11,11 @@ import { AdBuilder } from "@/components/ad-builder/ad-builder"
 import { CampaignProvider } from "@/lib/context/campaign-context"
 
 export default function LovableCreateAdPage() {
+  console.log('[CREATE-AD] Page component mounting')
+  
   // Get Lovable project context from extension
   const getLovableContext = useCallback(() => {
+    console.log('[CREATE-AD] Getting Lovable context')
     try {
       const context = sessionStorage.getItem('adpilot_lovable_context')
       if (context) {
@@ -26,9 +29,12 @@ export default function LovableCreateAdPage() {
 
   const lovableContext = getLovableContext()
   const lovableProjectId = lovableContext?.lovableProjectId
+  
+  console.log('[CREATE-AD] Rendering with projectId:', lovableProjectId)
 
   return (
     <CampaignProvider>
+      {console.log('[CREATE-AD] CampaignProvider rendered')}
       <AdBuilder lovableProjectId={lovableProjectId} />
     </CampaignProvider>
   )

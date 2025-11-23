@@ -45,6 +45,8 @@ interface AdBuilderProps {
 }
 
 export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProps) {
+  console.log('[AD-BUILDER] Component mounting with projectId:', lovableProjectId)
+  
   const router = useRouter()
   const { campaign, createCampaign, loadCampaign } = useCampaignContext()
   const [currentStep, setCurrentStep] = useState(1)
@@ -356,9 +358,13 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
   
   const isLastStep = currentStep === steps.length
 
+  console.log('[AD-BUILDER] Rendering, about to mount LocationTargetingProvider')
+
   return (
     <LocationTargetingProvider>
+      {console.log('[AD-BUILDER] LocationTargetingProvider rendered')}
       <div className="flex flex-col h-full bg-background">
+        {console.log('[AD-BUILDER] Main div rendering')}
         {/* Minimal Header */}
         <div className="border-b border-border bg-card">
           <div className="container mx-auto px-6 py-4 flex items-center justify-between">
