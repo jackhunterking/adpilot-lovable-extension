@@ -42,7 +42,7 @@ export class WorkspaceServiceClient {
    * Determine if new ad button should be shown
    */
   shouldShowNewAdButton(mode: WorkspaceMode): boolean {
-    return mode === 'results' || mode === 'all-ads';
+    return mode === 'results';
   }
 
   /**

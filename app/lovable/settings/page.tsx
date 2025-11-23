@@ -10,8 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProfileTab } from "@/components/settings/profile-tab"
 import { BillingTab } from "@/components/settings/billing-tab"
 import { GeneralTab } from "@/components/settings/general-tab"
-import { IntegrationsTab } from "@/components/settings/integrations-tab"
-import { User, CreditCard, Settings as SettingsIcon, Zap } from "lucide-react"
+import { User, CreditCard, Settings as SettingsIcon } from "lucide-react"
 
 export default function SettingsPage() {
   return (
@@ -25,7 +24,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="profile" className="gap-2">
               <User className="w-4 h-4" />
               Profile
@@ -37,10 +36,6 @@ export default function SettingsPage() {
             <TabsTrigger value="general" className="gap-2">
               <SettingsIcon className="w-4 h-4" />
               General
-            </TabsTrigger>
-            <TabsTrigger value="integrations" className="gap-2">
-              <Zap className="w-4 h-4" />
-              Integrations
             </TabsTrigger>
           </TabsList>
 
@@ -54,10 +49,6 @@ export default function SettingsPage() {
 
           <TabsContent value="general" className="mt-6">
             <GeneralTab />
-          </TabsContent>
-
-          <TabsContent value="integrations" className="mt-6">
-            <IntegrationsTab />
           </TabsContent>
         </Tabs>
       </div>

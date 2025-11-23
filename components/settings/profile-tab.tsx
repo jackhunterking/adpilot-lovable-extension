@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2, Mail, Calendar, Key, Shield, LogOut, AlertTriangle } from "lucide-react"
+import { Loader2, Mail, Calendar, Key, LogOut, AlertTriangle } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -25,7 +25,6 @@ export function ProfileTab() {
   const [userEmail, setUserEmail] = useState<string>("")
   const [userId, setUserId] = useState<string>("")
   const [createdAt, setCreatedAt] = useState<string>("")
-  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
@@ -63,29 +62,6 @@ export function ProfileTab() {
       day: "numeric",
       year: "numeric",
     }).format(date)
-  }
-
-  const handlePasswordReset = async () => {
-    if (!userEmail) {
-      toast.error("No email address found")
-      return
-    }
-
-    try {
-      setIsResettingPassword(true)
-      const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-        redirectTo: `${window.location.origin}/auth/post-verify`,
-      })
-
-      if (error) throw error
-
-      toast.success("Password reset email sent! Check your inbox.")
-    } catch (error) {
-      console.error("Error sending password reset:", error)
-      toast.error("Failed to send password reset email. Please try again.")
-    } finally {
-      setIsResettingPassword(false)
-    }
   }
 
   const handleLogout = async () => {
@@ -186,44 +162,16 @@ export function ProfileTab() {
         </CardContent>
       </Card>
 
-      {/* Security */}
-      <Card>
+      {/* Danger Zone */}
+      <Card className="border-red-500/20">
         <CardHeader>
-          <CardTitle>Security</CardTitle>
+          <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
           <CardDescription>
-            Manage your account security settings
+            Irreversible actions that affect your account
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <Label className="text-sm font-medium">Password</Label>
-              <p className="text-sm text-muted-foreground mt-1 mb-3">
-                Reset your password via email
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePasswordReset}
-                disabled={isResettingPassword}
-              >
-                {isResettingPassword ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  "Reset Password"
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="border-t pt-4" />
-
+          {/* Sign Out */}
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
               <LogOut className="w-5 h-5 text-primary" />
@@ -250,18 +198,10 @@ export function ProfileTab() {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Danger Zone */}
-      <Card className="border-red-500/20">
-        <CardHeader>
-          <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
-          <CardDescription>
-            Irreversible actions that affect your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          <div className="border-t pt-4" />
+
+          {/* Delete Account */}
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
