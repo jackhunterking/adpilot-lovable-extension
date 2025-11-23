@@ -213,34 +213,40 @@ export default function AnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4">Date</th>
-                        <th className="text-right py-3 px-4">Impressions</th>
-                        <th className="text-right py-3 px-4">Clicks</th>
-                        <th className="text-right py-3 px-4">CTR</th>
-                        <th className="text-right py-3 px-4">Spend</th>
-                        <th className="text-right py-3 px-4">CPC</th>
-                        <th className="text-right py-3 px-4">Conversions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {metrics.data.map((row) => (
-                        <tr key={row.date} className="border-b hover:bg-muted/50">
-                          <td className="py-3 px-4">{format(new Date(row.date), 'MMM d')}</td>
-                          <td className="text-right py-3 px-4">{row.impressions.toLocaleString()}</td>
-                          <td className="text-right py-3 px-4">{row.clicks.toLocaleString()}</td>
-                          <td className="text-right py-3 px-4">{row.ctr.toFixed(2)}%</td>
-                          <td className="text-right py-3 px-4">${row.spend.toFixed(2)}</td>
-                          <td className="text-right py-3 px-4">${row.cpc.toFixed(2)}</td>
-                          <td className="text-right py-3 px-4">{row.conversions}</td>
+                {metrics?.data && metrics.data.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-3 px-4">Date</th>
+                          <th className="text-right py-3 px-4">Impressions</th>
+                          <th className="text-right py-3 px-4">Clicks</th>
+                          <th className="text-right py-3 px-4">CTR</th>
+                          <th className="text-right py-3 px-4">Spend</th>
+                          <th className="text-right py-3 px-4">CPC</th>
+                          <th className="text-right py-3 px-4">Conversions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {metrics.data.map((row) => (
+                          <tr key={row.date} className="border-b hover:bg-muted/50">
+                            <td className="py-3 px-4">{format(new Date(row.date), 'MMM d')}</td>
+                            <td className="text-right py-3 px-4">{row.impressions.toLocaleString()}</td>
+                            <td className="text-right py-3 px-4">{row.clicks.toLocaleString()}</td>
+                            <td className="text-right py-3 px-4">{row.ctr.toFixed(2)}%</td>
+                            <td className="text-right py-3 px-4">${row.spend.toFixed(2)}</td>
+                            <td className="text-right py-3 px-4">${row.cpc.toFixed(2)}</td>
+                            <td className="text-right py-3 px-4">{row.conversions}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No performance data available yet
+                  </p>
+                )}
               </CardContent>
             </Card>
 

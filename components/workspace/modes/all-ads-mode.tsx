@@ -48,6 +48,10 @@ export function AllAdsMode(props: AllAdsModeProps) {
     console.log('[AllAdsMode] Delete ad:', adId);
     await props.refreshAds();
   };
+  
+  const handleNewAd = () => {
+    props.onNavigate('build');
+  };
 
   return (
     <div className="flex-1 h-full overflow-hidden bg-background min-h-0">
@@ -62,6 +66,7 @@ export function AllAdsMode(props: AllAdsModeProps) {
         onCreateABTest={handleCreateABTest}
         onDeleteAd={handleDeleteAd}
         onRefreshAds={props.refreshAds}
+        onNewAd={handleNewAd}
       />
     </div>
   );

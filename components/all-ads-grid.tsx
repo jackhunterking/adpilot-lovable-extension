@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Rocket } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CheckCircle2, Rocket, Plus } from "lucide-react"
 import { getStatusConfig, sortByStatusPriority, filterByStatus } from "@/lib/utils/ad-status"
 import { cn } from "@/lib/utils"
 import { AdApprovalPanel } from "@/components/admin/ad-approval-panel"
@@ -35,6 +36,7 @@ export interface AllAdsGridProps {
   onCreateABTest: (adId: string) => void
   onDeleteAd: (adId: string) => void
   onRefreshAds?: () => void
+  onNewAd?: () => void
 }
 
 type StatusFilter = 'all' | AdStatus
@@ -50,6 +52,7 @@ export function AllAdsGrid({
   onCreateABTest,
   onDeleteAd,
   onRefreshAds,
+  onNewAd,
 }: AllAdsGridProps) {
   const [publishAdId, setPublishAdId] = useState<string | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
@@ -125,6 +128,31 @@ export function AllAdsGrid({
     { value: 'rejected', label: 'Needs Changes' },
     { value: 'failed', label: 'Failed' },
   ]
+
+  // If no ads at all, show empty state card
+  if (ads.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Rocket className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Create Your First Ad</CardTitle>
+            <CardDescription className="text-base mt-2">
+              Get started with AdPilot by creating your first ad campaign
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={onNewAd} size="lg" className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Ad
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <>
