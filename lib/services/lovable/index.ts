@@ -7,6 +7,10 @@
 export { LovableSyncService } from './lovable-sync-service-impl';
 export { LovableConversionService } from './lovable-conversion-service-impl';
 export { LovableProjectService } from './lovable-project-service-impl';
+export { LovableCampaignManager, createCampaignManager } from './campaign-manager';
+
+// Campaign manager types
+export type { CampaignForProject, GetOrCreateCampaignOptions } from './campaign-manager';
 
 // Service contracts
 export type {

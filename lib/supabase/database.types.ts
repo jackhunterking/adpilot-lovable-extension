@@ -126,10 +126,14 @@ export type Database = {
           created_at: string
           creative_format: string
           creative_style: string | null
+          format_metadata: Json | null
           gradient_class: string | null
           id: string
-          image_url: string
+          image_url_square: string
+          image_url_vertical: string | null
           is_base_image: boolean | null
+          metadata: Json | null
+          selected_format: string | null
           sort_order: number | null
           variation_label: string | null
         }
@@ -138,10 +142,14 @@ export type Database = {
           created_at?: string
           creative_format: string
           creative_style?: string | null
+          format_metadata?: Json | null
           gradient_class?: string | null
           id?: string
-          image_url: string
+          image_url_square: string
+          image_url_vertical?: string | null
           is_base_image?: boolean | null
+          metadata?: Json | null
+          selected_format?: string | null
           sort_order?: number | null
           variation_label?: string | null
         }
@@ -150,10 +158,14 @@ export type Database = {
           created_at?: string
           creative_format?: string
           creative_style?: string | null
+          format_metadata?: Json | null
           gradient_class?: string | null
           id?: string
-          image_url?: string
+          image_url_square?: string
+          image_url_vertical?: string | null
           is_base_image?: boolean | null
+          metadata?: Json | null
+          selected_format?: string | null
           sort_order?: number | null
           variation_label?: string | null
         }
@@ -394,12 +406,18 @@ export type Database = {
       ads: {
         Row: {
           approved_at: string | null
-          campaign_id: string
+          campaign_id: string | null
+          clicks: number | null
           completed_steps: Json | null
+          conversions: number | null
           created_at: string
+          description: string | null
           destination_type: string | null
+          headline: string | null
           id: string
+          impressions: number | null
           last_error: Json | null
+          lovable_project_id: string | null
           meta_ad_id: string | null
           meta_review_status: string
           metrics_snapshot: Json | null
@@ -409,16 +427,24 @@ export type Database = {
           selected_copy_id: string | null
           selected_creative_id: string | null
           status: Database["public"]["Enums"]["ad_status_enum"]
+          target_url: string | null
+          thumbnail_url: string | null
           updated_at: string
         }
         Insert: {
           approved_at?: string | null
-          campaign_id: string
+          campaign_id?: string | null
+          clicks?: number | null
           completed_steps?: Json | null
+          conversions?: number | null
           created_at?: string
+          description?: string | null
           destination_type?: string | null
+          headline?: string | null
           id?: string
+          impressions?: number | null
           last_error?: Json | null
+          lovable_project_id?: string | null
           meta_ad_id?: string | null
           meta_review_status?: string
           metrics_snapshot?: Json | null
@@ -428,16 +454,24 @@ export type Database = {
           selected_copy_id?: string | null
           selected_creative_id?: string | null
           status?: Database["public"]["Enums"]["ad_status_enum"]
+          target_url?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
         }
         Update: {
           approved_at?: string | null
-          campaign_id?: string
+          campaign_id?: string | null
+          clicks?: number | null
           completed_steps?: Json | null
+          conversions?: number | null
           created_at?: string
+          description?: string | null
           destination_type?: string | null
+          headline?: string | null
           id?: string
+          impressions?: number | null
           last_error?: Json | null
+          lovable_project_id?: string | null
           meta_ad_id?: string | null
           meta_review_status?: string
           metrics_snapshot?: Json | null
@@ -447,6 +481,8 @@ export type Database = {
           selected_copy_id?: string | null
           selected_creative_id?: string | null
           status?: Database["public"]["Enums"]["ad_status_enum"]
+          target_url?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -830,6 +866,7 @@ export type Database = {
           id: string
           initial_goal: string | null
           last_metrics_sync_at: string | null
+          lovable_project_id: string | null
           metadata: Json | null
           name: string
           published_status: string | null
@@ -848,6 +885,7 @@ export type Database = {
           id?: string
           initial_goal?: string | null
           last_metrics_sync_at?: string | null
+          lovable_project_id?: string | null
           metadata?: Json | null
           name: string
           published_status?: string | null
@@ -866,6 +904,7 @@ export type Database = {
           id?: string
           initial_goal?: string | null
           last_metrics_sync_at?: string | null
+          lovable_project_id?: string | null
           metadata?: Json | null
           name?: string
           published_status?: string | null
@@ -1123,6 +1162,101 @@ export type Database = {
           },
         ]
       }
+      lovable_image_imports: {
+        Row: {
+          adpilot_image_url: string
+          campaign_id: string
+          created_at: string | null
+          creative_id: string
+          id: string
+          import_status: string
+          imported_at: string | null
+          lovable_image_url: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          adpilot_image_url: string
+          campaign_id: string
+          created_at?: string | null
+          creative_id: string
+          id?: string
+          import_status?: string
+          imported_at?: string | null
+          lovable_image_url: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          adpilot_image_url?: string
+          campaign_id?: string
+          created_at?: string | null
+          creative_id?: string
+          id?: string
+          import_status?: string
+          imported_at?: string | null
+          lovable_image_url?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lovable_image_imports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lovable_image_imports_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "ad_creatives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lovable_project_links: {
+        Row: {
+          created_at: string
+          id: string
+          lovable_project_id: string
+          metadata: Json | null
+          status: string
+          supabase_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lovable_project_id: string
+          metadata?: Json | null
+          status?: string
+          supabase_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lovable_project_id?: string
+          metadata?: Json | null
+          status?: string
+          supabase_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lovable_project_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -1254,6 +1388,68 @@ export type Database = {
             foreignKeyName: "meta_accounts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_connections: {
+        Row: {
+          access_token: string | null
+          ad_account_id: string | null
+          ad_account_name: string | null
+          business_id: string | null
+          business_name: string | null
+          created_at: string
+          currency: string | null
+          has_funding: boolean | null
+          id: string
+          page_id: string | null
+          page_name: string | null
+          pixel_id: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id?: string | null
+          business_name?: string | null
+          created_at?: string
+          currency?: string | null
+          has_funding?: boolean | null
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          pixel_id?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id?: string | null
+          business_name?: string | null
+          created_at?: string
+          currency?: string | null
+          has_funding?: boolean | null
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          pixel_id?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1558,6 +1754,14 @@ export type Database = {
           publishing_data: Json
         }[]
       }
+      get_ad_locations_count: {
+        Args: { p_ad_id: string }
+        Returns: {
+          exclude_count: number
+          include_count: number
+          total_count: number
+        }[]
+      }
       get_campaign_ad_account_id: {
         Args: { p_campaign_id: string }
         Returns: string
@@ -1627,6 +1831,18 @@ export type Database = {
           user_app_connected: boolean
         }[]
       }
+      get_or_create_campaign_for_project: {
+        Args: {
+          p_campaign_name?: string
+          p_lovable_project_id: string
+          p_user_id: string
+        }
+        Returns: {
+          campaign_id: string
+          campaign_name: string
+          was_created: boolean
+        }[]
+      }
       get_user_campaigns_summary: {
         Args: { p_limit?: number; p_offset?: number; p_user_id: string }
         Returns: {
@@ -1634,6 +1850,29 @@ export type Database = {
           campaign_data: Json
           state_data: Json
         }[]
+      }
+      link_lovable_project: {
+        Args: {
+          p_lovable_project_id: string
+          p_metadata?: Json
+          p_supabase_url?: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          lovable_project_id: string
+          metadata: Json | null
+          status: string
+          supabase_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "lovable_project_links"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       record_ad_status_transition: {
         Args: {
@@ -1657,6 +1896,10 @@ export type Database = {
           p_notes?: string
           p_triggered_by?: string
         }
+        Returns: boolean
+      }
+      user_owns_ad: {
+        Args: { p_ad_id: string; p_user_id: string }
         Returns: boolean
       }
       user_owns_campaign: {

@@ -81,6 +81,55 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
     }
   }
 
+  // Auto-link Lovable project to user account
+  const autoLinkProject = async () => {
+    if (!lovableProjectId) return false
+    
+    try {
+      console.log("[AdBuilder] Auto-linking Lovable project:", lovableProjectId)
+      
+      // Check if already linked by trying to get campaigns
+      const checkResponse = await fetch(`/api/v1/lovable/projects/${lovableProjectId}/campaigns`, {
+        credentials: 'include'
+      })
+      
+      if (checkResponse.ok) {
+        console.log("[AdBuilder] ✅ Project already linked")
+        return true
+      }
+      
+      // Not linked yet - link it automatically
+      console.log("[AdBuilder] Linking project to user account...")
+      const linkResponse = await fetch('/api/v1/lovable/projects/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          lovableProjectId: lovableProjectId,
+          metadata: { 
+            auto_linked: true, 
+            timestamp: Date.now(),
+            source: 'ad_builder'
+          }
+        })
+      })
+      
+      if (linkResponse.ok) {
+        console.log("[AdBuilder] ✅ Project linked successfully")
+        return true
+      } else {
+        const error = await linkResponse.json()
+        console.error("[AdBuilder] Failed to link project:", error)
+        toast.error("Failed to link Lovable project. Please try again.")
+        return false
+      }
+    } catch (err) {
+      console.error("[AdBuilder] Error linking project:", err)
+      toast.error("Error linking Lovable project")
+      return false
+    }
+  }
+
   // Auto-create campaign for Lovable projects
   const ensureLovableCampaign = async () => {
     try {
@@ -289,7 +338,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
     setShowExitDialog(false)
   }
 
-  // Auto-create campaign on mount for Lovable projects
+  // Auto-link project and create campaign on mount for Lovable projects
   useEffect(() => {
     async function initializeCampaign() {
       // Skip if already initialized
@@ -302,9 +351,20 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
         return
       }
       
-      // If lovableProjectId provided, auto-create campaign
+      // If lovableProjectId provided, auto-link and create campaign
       if (lovableProjectId) {
-        console.log("[AdBuilder] Lovable project detected, ensuring campaign...")
+        console.log("[AdBuilder] Lovable project detected, initializing...")
+        
+        // Step 1: Auto-link project
+        const linked = await autoLinkProject()
+        if (!linked) {
+          console.error("[AdBuilder] Failed to link project, cannot proceed")
+          toast.error("Please refresh the page and try again")
+          return
+        }
+        
+        // Step 2: Ensure campaign exists
+        console.log("[AdBuilder] Ensuring campaign...")
         const success = await ensureLovableCampaign()
         if (success) {
           setCampaignInitialized(true)

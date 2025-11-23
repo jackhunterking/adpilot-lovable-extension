@@ -9,8 +9,9 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth, requireCampaignOwnership, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
-import { supabaseServer } from "@/lib/supabase/server"
+import { createServerClient, supabaseServer } from "@/lib/supabase/server"
 import { adDataService } from "@/lib/services/ad-data-service"
+import { createCampaignManager } from "@/lib/services/lovable"
 
 // GET /api/v1/ads?campaignId=xxx - List ads for campaign
 export async function GET(request: NextRequest) {
@@ -80,27 +81,82 @@ export async function POST(request: NextRequest) {
       lovableProjectId?: string | null
     }
 
-    if (!campaignId) {
-      throw new ValidationError('campaignId is required')
+    // Handle two scenarios:
+    // 1. campaignId provided directly (traditional flow)
+    // 2. lovableProjectId provided (Lovable extension flow - auto-create campaign)
+    
+    let finalCampaignId: string;
+    let finalLovableProjectId: string | null = lovableProjectId;
+
+    if (!campaignId && !lovableProjectId) {
+      throw new ValidationError('Either campaignId or lovableProjectId is required')
     }
     
     if (!name) {
       throw new ValidationError('Ad name is required')
     }
-    
-    // Verify campaign ownership
-    await requireCampaignOwnership(campaignId, user.id)
+
+    if (lovableProjectId && !campaignId) {
+      // Lovable extension flow: auto-create campaign if needed
+      console.log('[POST /api/v1/ads] Lovable extension flow - getting/creating campaign for project:', lovableProjectId)
+      
+      const supabase = await createServerClient()
+      const campaignManager = createCampaignManager(supabase)
+      
+      try {
+        const campaignResult = await campaignManager.getOrCreateCampaign({
+          userId: user.id,
+          lovableProjectId: lovableProjectId,
+          campaignName: undefined, // Let it auto-generate
+        })
+        
+        finalCampaignId = campaignResult.campaign_id
+        
+        console.log('[POST /api/v1/ads] ✅ Campaign ready:', {
+          campaignId: finalCampaignId,
+          wasCreated: campaignResult.was_created,
+          campaignName: campaignResult.campaign_name,
+        })
+      } catch (campaignError) {
+        console.error('[POST /api/v1/ads] Failed to get/create campaign:', campaignError)
+        throw new ValidationError(
+          campaignError instanceof Error 
+            ? campaignError.message 
+            : 'Failed to get or create campaign for Lovable project'
+        )
+      }
+    } else if (campaignId) {
+      // Traditional flow: verify campaign ownership
+      finalCampaignId = campaignId
+      await requireCampaignOwnership(campaignId, user.id)
+      
+      // If lovableProjectId not provided but campaign has one, inherit it
+      if (!finalLovableProjectId) {
+        const { data: campaign } = await supabaseServer
+          .from('campaigns')
+          .select('lovable_project_id')
+          .eq('id', campaignId)
+          .single()
+        
+        if (campaign?.lovable_project_id) {
+          finalLovableProjectId = campaign.lovable_project_id
+        }
+      }
+    } else {
+      // This shouldn't happen due to validation above, but TypeScript needs it
+      throw new ValidationError('Invalid campaign configuration')
+    }
 
     // Create new ad
     const { data: ad, error } = await supabaseServer
       .from("ads")
       .insert({
-        campaign_id: campaignId,
+        campaign_id: finalCampaignId,
         name,
         status: status as 'draft' | 'active' | 'paused',
         meta_ad_id,
         metrics_snapshot: null,
-        lovable_project_id: lovableProjectId,
+        lovable_project_id: finalLovableProjectId,
       })
       .select()
       .single()
@@ -110,9 +166,9 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create ad')
     }
 
-    console.log('[POST /api/v1/ads] ✅ Created ad:', ad.id)
+    console.log('[POST /api/v1/ads] ✅ Created ad:', ad.id, 'for campaign:', finalCampaignId)
 
-    return successResponse({ ad }, undefined, 201)
+    return successResponse({ ad, campaignId: finalCampaignId }, undefined, 201)
   } catch (error) {
     console.error('[POST /api/v1/ads] Error:', error)
     return errorResponse(error as Error)

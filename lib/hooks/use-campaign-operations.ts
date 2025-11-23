@@ -106,16 +106,29 @@ export function useCampaignOperations() {
     }
   }, [])
 
-  const createAd = useCallback(async (campaignId: string, adName: string) => {
+  const createAd = useCallback(async (
+    adName: string,
+    options: { campaignId?: string; lovableProjectId?: string }
+  ) => {
     setLoading(true)
     setError(null)
 
     try {
+      const body: any = { name: adName }
+      
+      // Support both traditional and Lovable extension flows
+      if (options.campaignId) {
+        body.campaignId = options.campaignId
+      }
+      if (options.lovableProjectId) {
+        body.lovableProjectId = options.lovableProjectId
+      }
+
       const response = await fetch('/api/v1/ads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ campaign_id: campaignId, name: adName })
+        body: JSON.stringify(body)
       })
 
       if (!response.ok) {

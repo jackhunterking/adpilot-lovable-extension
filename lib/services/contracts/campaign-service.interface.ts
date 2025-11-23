@@ -19,6 +19,7 @@ export interface Campaign {
   status: 'draft' | 'active' | 'paused' | 'completed';
   current_step?: number | null;
   initial_goal: 'leads' | 'calls' | 'website-visits' | null;
+  lovable_project_id?: string | null;
   metadata?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -30,6 +31,7 @@ export interface CreateCampaignInput {
   tempPromptId?: string;
   prompt?: string;
   goalType?: 'leads' | 'calls' | 'website-visits';
+  lovableProjectId?: string;
 }
 
 export interface UpdateCampaignInput {
