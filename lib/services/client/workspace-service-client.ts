@@ -9,7 +9,7 @@
 
 "use client";
 
-export type WorkspaceMode = 'build' | 'edit' | 'all-ads' | 'results' | 'ab-test-builder';
+export type WorkspaceMode = 'overview' | 'build' | 'edit' | 'all-ads' | 'results' | 'ab-test-builder';
 
 export interface WorkspaceState {
   mode: WorkspaceMode;
@@ -35,14 +35,14 @@ export class WorkspaceServiceClient {
    * Determine if back button should be shown
    */
   shouldShowBackButton(mode: WorkspaceMode): boolean {
-    return mode !== 'all-ads';
+    return mode !== 'all-ads' && mode !== 'overview';
   }
 
   /**
    * Determine if new ad button should be shown
    */
   shouldShowNewAdButton(mode: WorkspaceMode): boolean {
-    return mode === 'results' || mode === 'all-ads';
+    return mode === 'results' || mode === 'all-ads' || mode === 'overview';
   }
 
   /**
@@ -57,7 +57,7 @@ export class WorkspaceServiceClient {
       return 'build';
     }
     
-    return 'all-ads';
+    return 'overview'; // Default to overview instead of all-ads
   }
 
   /**
@@ -132,11 +132,12 @@ export class WorkspaceServiceClient {
 
     // Define allowed transitions
     const allowedTransitions: Record<WorkspaceMode, WorkspaceMode[]> = {
-      'build': ['edit', 'all-ads', 'results'],
-      'edit': ['build', 'all-ads', 'results'],
-      'all-ads': ['build', 'edit', 'results', 'ab-test-builder'],
-      'results': ['build', 'edit', 'all-ads'],
-      'ab-test-builder': ['all-ads'],
+      'overview': ['build', 'all-ads', 'results'],
+      'build': ['edit', 'all-ads', 'results', 'overview'],
+      'edit': ['build', 'all-ads', 'results', 'overview'],
+      'all-ads': ['build', 'edit', 'results', 'ab-test-builder', 'overview'],
+      'results': ['build', 'edit', 'all-ads', 'overview'],
+      'ab-test-builder': ['all-ads', 'overview'],
     };
 
     const allowed = allowedTransitions[from]?.includes(to) ?? false;
@@ -153,6 +154,7 @@ export class WorkspaceServiceClient {
    */
   getModeDisplayName(mode: WorkspaceMode): string {
     const names: Record<WorkspaceMode, string> = {
+      'overview': 'Overview',
       'build': 'Build Mode',
       'edit': 'Edit Mode',
       'all-ads': 'All Ads',

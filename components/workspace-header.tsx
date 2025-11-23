@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, ArrowRight, Settings } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, ArrowRight } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +33,6 @@ import { metaStorage } from "@/lib/meta/storage"
 import { metaLogger } from "@/lib/meta/logger"
 import { toast } from "sonner"
 import { emitMetaConnectionUpdated } from "@/lib/utils/meta-events"
-import { SettingsModal } from "@/components/settings-modal"
 
 
 export function WorkspaceHeader({
@@ -70,7 +69,6 @@ export function WorkspaceHeader({
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof metaActions.getSummary>> | null>(null)
   
   // Use real-time hook status, fallback to props for SSR/initial render
@@ -345,22 +343,9 @@ export function WorkspaceHeader({
           ) : null}
         </div>
 
-        {/* Right: Status Badge, Settings Button, Action Buttons */}
+        {/* Right: Status Badge, Action Buttons */}
         <div className="flex items-center gap-4">
           {statusBadge}
-          
-          {/* Settings Button */}
-          {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSettingsModal(true)}
-              className="h-8 w-8 p-0"
-              title="Campaign Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
           
           {/* Build/Edit mode - Non-final steps: No action buttons (stepper handles Next) */}
           {(mode === 'build' || mode === 'edit') && !isOnFinalStep && !showNewAdButton && (
@@ -497,13 +482,6 @@ export function WorkspaceHeader({
             throw error // Re-throw so dialog can show error state
           }
         }}
-      />
-
-      {/* Settings Modal */}
-      <SettingsModal
-        open={showSettingsModal}
-        onOpenChange={setShowSettingsModal}
-        onBudgetUpdate={onBudgetUpdate}
       />
 
     </>

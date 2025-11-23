@@ -180,11 +180,11 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
 
   // authStep === 'ready'
   return (
-    <div className="min-h-screen bg-background flex flex-row">
-      <Suspense fallback={<div className="w-64 border-r" />}>
+    <div className="h-screen bg-background flex flex-row overflow-hidden">
+      <Suspense fallback={<div className="w-64 border-r h-full" />}>
         <AppSidebar />
       </Suspense>
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto h-full">
         {children}
       </main>
     </div>

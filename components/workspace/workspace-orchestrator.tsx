@@ -12,6 +12,7 @@
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WorkspaceHeader } from "@/components/workspace-header";
+import { OverviewMode } from "./modes/overview-mode";
 import { BuildMode } from "./modes/build-mode";
 import { EditMode } from "./modes/edit-mode";
 import { AllAdsMode } from "./modes/all-ads-mode";
@@ -95,6 +96,9 @@ export function CampaignWorkspaceOrchestrator() {
     };
 
     switch (effectiveMode) {
+      case 'overview':
+        return <OverviewMode {...modeProps} />;
+      
       case 'build':
         return <BuildMode {...modeProps} />;
       
@@ -111,7 +115,7 @@ export function CampaignWorkspaceOrchestrator() {
         return <ABTestMode {...modeProps} />;
       
       default:
-        return <AllAdsMode {...modeProps} />;
+        return <OverviewMode {...modeProps} />;
     }
   };
 
