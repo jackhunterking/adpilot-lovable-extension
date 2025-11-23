@@ -44,10 +44,11 @@ interface AdBuilderProps {
   lovableProjectId?: string
   initialDraft?: Partial<AdDraft>
   refreshAds?: () => Promise<void>
+  editAdId?: string  // If provided, we're editing an existing ad
 }
 
-export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: AdBuilderProps) {
-  console.log('[AD-BUILDER] Component mounting with projectId:', lovableProjectId)
+export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds, editAdId }: AdBuilderProps) {
+  console.log('[AD-BUILDER] Component mounting with projectId:', lovableProjectId, 'editAdId:', editAdId)
   
   const router = useRouter()
   const { campaign, createCampaign, loadCampaign } = useCampaignContext()
@@ -56,8 +57,9 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
   const [draft, setDraft] = useState<AdDraft>(initialDraft)
   const [showExitDialog, setShowExitDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [draftAdId, setDraftAdId] = useState<string | null>(null)
+  const [draftAdId, setDraftAdId] = useState<string | null>(editAdId || null)
   const [campaignInitialized, setCampaignInitialized] = useState(false)
+  const isEditMode = !!editAdId
   
   // Enter fullscreen mode on mount, exit on unmount
   useAutoFullscreen()
@@ -112,13 +114,14 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
     setIsSaving(true)
     try {
       // ⚠️ BACKEND OPERATION: Save ad draft to database
-      console.log("[AdBuilder] Saving draft:", { draft, lovableProjectId, hasCampaign: !!campaign?.id })
+      console.log("[AdBuilder] Saving draft:", { draft, lovableProjectId, hasCampaign: !!campaign?.id, isEditMode })
       
       let adId = draftAdId
       let finalCampaignId = campaign?.id
 
       // Step 1: Create draft ad (API will auto-create campaign if needed)
-      if (!adId) {
+      // Skip creation if we're in edit mode - ad already exists
+      if (!adId && !isEditMode) {
         const adName = `Draft Ad - ${new Date().toLocaleString()}`
         console.log("[AdBuilder] Creating ad:", adName, "with lovableProjectId:", lovableProjectId)
         
@@ -145,6 +148,10 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
         }
         
         console.log("[AdBuilder] ✅ Created draft ad:", adId, "campaign:", finalCampaignId)
+      } else if (isEditMode && !adId) {
+        // Should not happen - edit mode should always have an ad ID
+        console.error("[AdBuilder] Edit mode but no ad ID provided")
+        throw new Error('Cannot edit ad: No ad ID available')
       }
 
       // Step 2: Save ad data sections (matching SaveAdPayload interface)
@@ -232,10 +239,10 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
         }
 
         console.log("[AdBuilder] ✅ Saved ad data successfully")
-        toast.success("Ad saved as draft")
+        toast.success(isEditMode ? "Ad updated successfully" : "Ad saved as draft")
       } else {
         console.log("[AdBuilder] No data to save yet - just created draft ad")
-        toast.success("Draft ad created - fill in details and save again")
+        toast.success(isEditMode ? "Ad updated" : "Draft ad created - fill in details and save again")
       }
       
       // Refresh ads list to show updated draft
@@ -318,7 +325,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds }: A
         <div className="border-b border-border bg-card">
           <div className="container mx-auto px-6 py-4 flex items-center justify-between">
             {/* Left: Title */}
-            <h1 className="text-xl font-semibold">Create Ad</h1>
+            <h1 className="text-xl font-semibold">{isEditMode ? 'Edit Ad' : 'Create Ad'}</h1>
             
             {/* Center: Minimal Progress */}
             <div className="flex items-center gap-3">
