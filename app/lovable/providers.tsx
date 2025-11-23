@@ -11,19 +11,22 @@ import { AdCopyProvider } from "@/lib/context/ad-copy-context"
 import { LocationProvider } from "@/lib/context/location-context"
 import { CurrentAdProvider } from "@/lib/context/current-ad-context"
 import { AdPreviewProvider } from "@/lib/context/ad-preview-context"
+import { GoalProvider } from "@/lib/context/goal-context"
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <CurrentAdProvider>
-      <BudgetProvider>
-        <AdCopyProvider>
-          <LocationProvider>
-            <AdPreviewProvider>
-              {children}
-            </AdPreviewProvider>
-          </LocationProvider>
-        </AdCopyProvider>
-      </BudgetProvider>
+      <GoalProvider>
+        <BudgetProvider>
+          <AdCopyProvider>
+            <LocationProvider>
+              <AdPreviewProvider>
+                {children}
+              </AdPreviewProvider>
+            </LocationProvider>
+          </AdCopyProvider>
+        </BudgetProvider>
+      </GoalProvider>
     </CurrentAdProvider>
   )
 }
