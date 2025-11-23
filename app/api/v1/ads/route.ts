@@ -97,13 +97,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (lovableProjectId && !campaignId) {
-      // Lovable extension flow: auto-create campaign if needed
-      console.log('[POST /api/v1/ads] Lovable extension flow - getting/creating campaign for project:', lovableProjectId)
+      // Lovable extension flow: auto-link project + auto-create campaign
+      console.log('[POST /api/v1/ads] Lovable extension flow - project:', lovableProjectId)
       
       const supabase = await createServerClient()
       const campaignManager = createCampaignManager(supabase)
       
       try {
+        // Step 1: Ensure project is linked (idempotent)
+        console.log('[POST /api/v1/ads] Step 1: Linking project to user...')
+        await campaignManager.linkProject(lovableProjectId, user.id)
+        console.log('[POST /api/v1/ads] ✅ Project linked')
+        
+        // Step 2: Get or create campaign (now that project is linked)
+        console.log('[POST /api/v1/ads] Step 2: Getting/creating campaign...')
         const campaignResult = await campaignManager.getOrCreateCampaign({
           userId: user.id,
           lovableProjectId: lovableProjectId,

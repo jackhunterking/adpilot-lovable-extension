@@ -102,7 +102,7 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
     }
   }, [])
 
-  // Check authentication flow
+  // Check authentication flow - SIMPLIFIED (no campaign creation here)
   useEffect(() => {
     async function checkAuth() {
       setAuthError(null)
@@ -113,85 +113,15 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
         return
       }
 
-      // Step 2: Get or create campaign (with lovableProjectId support)
-      try {
-        const existingCampaignId = sessionStorage.getItem('lovable_campaign_id')
-        
-        if (existingCampaignId) {
-          console.log('[LovableLayout] Using existing campaign:', existingCampaignId)
-          setCampaignId(existingCampaignId)
-        } else if (lovableProjectId) {
-          // NEW: Auto-link project and create campaign via new API
-          console.log('[LovableLayout] Auto-linking project and creating campaign:', lovableProjectId)
-          
-          // First, link the project
-          try {
-            await fetch('/api/v1/lovable/projects/link', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                lovableProjectId: lovableProjectId,
-                metadata: { 
-                  auto_linked: true, 
-                  timestamp: Date.now(),
-                  source: 'lovable_layout'
-                }
-              })
-            })
-            console.log('[LovableLayout] ✅ Project linked')
-          } catch (linkErr) {
-            console.error('[LovableLayout] Project linking error:', linkErr)
-            // Continue anyway - might already be linked
-          }
-          
-          // Create campaign via API with lovableProjectId
-          const response = await fetch('/api/v1/campaigns', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              name: `Campaign for project ${lovableProjectId}`,
-              initial_goal: 'leads',
-              lovableProjectId: lovableProjectId
-            })
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            const newCampaignId = data.data?.campaign?.id
-            if (newCampaignId) {
-              console.log('[LovableLayout] ✅ Campaign created with project link:', newCampaignId)
-              setCampaignId(newCampaignId)
-              sessionStorage.setItem('lovable_campaign_id', newCampaignId)
-            }
-          } else {
-            console.error('[LovableLayout] Failed to create campaign:', await response.text())
-          }
-        } else {
-          // Fallback: Create campaign without project ID (old way)
-          console.log('[LovableLayout] No project ID yet, creating campaign old way')
-          const response = await fetch('/api/v1/campaigns', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              name: `Lovable - ${new Date().toISOString().split('T')[0]}`,
-              initial_goal: 'leads'
-            })
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            const newCampaignId = data.data?.campaign?.id
-            if (newCampaignId) {
-              setCampaignId(newCampaignId)
-              sessionStorage.setItem('lovable_campaign_id', newCampaignId)
-            }
-          }
-        }
-      } catch (err) {
-        console.error('[Lovable Layout] Campaign setup error:', err)
+      // Step 2: Just store lovableProjectId - DON'T create campaign yet
+      // Campaign will be auto-created when user creates first ad
+      console.log('[LovableLayout] User authenticated, lovableProjectId:', lovableProjectId || 'none')
+      
+      // Just check if campaign exists (don't create)
+      const existingCampaignId = sessionStorage.getItem('lovable_campaign_id')
+      if (existingCampaignId) {
+        console.log('[LovableLayout] Using existing campaign:', existingCampaignId)
+        setCampaignId(existingCampaignId)
       }
 
       // Step 3: Check Meta connection (if required)

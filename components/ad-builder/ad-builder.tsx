@@ -81,100 +81,13 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
     }
   }
 
-  // Auto-link Lovable project to user account
-  const autoLinkProject = async () => {
-    if (!lovableProjectId) return false
-    
-    try {
-      console.log("[AdBuilder] Auto-linking Lovable project:", lovableProjectId)
-      
-      // Check if already linked by trying to get campaigns
-      const checkResponse = await fetch(`/api/v1/lovable/projects/${lovableProjectId}/campaigns`, {
-        credentials: 'include'
-      })
-      
-      if (checkResponse.ok) {
-        console.log("[AdBuilder] ✅ Project already linked")
-        return true
-      }
-      
-      // Not linked yet - link it automatically
-      console.log("[AdBuilder] Linking project to user account...")
-      const linkResponse = await fetch('/api/v1/lovable/projects/link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          lovableProjectId: lovableProjectId,
-          metadata: { 
-            auto_linked: true, 
-            timestamp: Date.now(),
-            source: 'ad_builder'
-          }
-        })
-      })
-      
-      if (linkResponse.ok) {
-        console.log("[AdBuilder] ✅ Project linked successfully")
-        return true
-      } else {
-        const error = await linkResponse.json()
-        console.error("[AdBuilder] Failed to link project:", error)
-        toast.error("Failed to link Lovable project. Please try again.")
-        return false
-      }
-    } catch (err) {
-      console.error("[AdBuilder] Error linking project:", err)
-      toast.error("Error linking Lovable project")
-      return false
+  // Simplified: Just log that we have the project ID
+  useEffect(() => {
+    if (lovableProjectId) {
+      console.log("[AdBuilder] Lovable project ID available:", lovableProjectId)
+      console.log("[AdBuilder] Campaign will be auto-created via API when ad is saved")
     }
-  }
-
-  // Auto-create campaign for Lovable projects
-  const ensureLovableCampaign = async () => {
-    try {
-      console.log("[AdBuilder] Ensuring campaign for Lovable project:", lovableProjectId)
-      
-      // Check for existing campaign in sessionStorage
-      const existingId = sessionStorage.getItem('lovable_campaign_id')
-      
-      if (existingId) {
-        console.log("[AdBuilder] Found existing campaign ID:", existingId)
-        // Try to load existing campaign into context
-        try {
-          await loadCampaign(existingId)
-          console.log("[AdBuilder] ✅ Loaded existing campaign")
-          return true
-        } catch (err) {
-          console.warn("[AdBuilder] Existing campaign not found, will create new one:", err)
-          sessionStorage.removeItem('lovable_campaign_id')
-        }
-      }
-      
-      // Create new campaign for Lovable project
-      const campaignName = `Lovable - ${lovableProjectId.slice(0, 15)}`
-      
-      console.log("[AdBuilder] Creating new campaign:", campaignName)
-      
-      const newCampaign = await createCampaign(
-        campaignName,
-        undefined, // No initial prompt for Lovable
-        'leads'    // Default goal
-      )
-      
-      if (newCampaign) {
-        sessionStorage.setItem('lovable_campaign_id', newCampaign.id)
-        console.log("[AdBuilder] ✅ Campaign created:", newCampaign.id)
-        return true
-      } else {
-        throw new Error('Failed to create campaign')
-      }
-    } catch (error) {
-      console.error('[AdBuilder] Failed to ensure campaign:', error)
-      toast.error('Failed to initialize campaign')
-      return false
-    }
-  }
+  }, [lovableProjectId])
 
   // Check if there are any unsaved changes
   const hasUnsavedChanges = 
@@ -196,53 +109,46 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
     setIsSaving(true)
     try {
       // ⚠️ BACKEND OPERATION: Save ad draft to database
-      console.log("[AdBuilder] Saving draft:", { draft, campaignId: campaign?.id, lovableProjectId })
+      console.log("[AdBuilder] Saving draft:", { draft, lovableProjectId, hasCampaign: !!campaign?.id })
       
-      // If no campaign, try to create one for Lovable projects
-      if (!campaign?.id) {
-        if (lovableProjectId) {
-          console.log("[AdBuilder] No campaign found, creating for Lovable project...")
-          const success = await ensureLovableCampaign()
-          
-          if (!success || !campaign?.id) {
-            toast.error("Failed to create campaign. Please try again.")
-            setIsSaving(false)
-            return
-          }
-          
-          console.log("[AdBuilder] Campaign created, proceeding with save")
-        } else {
-          toast.error("No campaign found. Please create a campaign first.")
-          setIsSaving(false)
-          return
-        }
-      }
-
       let adId = draftAdId
+      let finalCampaignId = campaign?.id
 
-      // Step 1: Create draft ad if doesn't exist
+      // Step 1: Create draft ad (API will auto-create campaign if needed)
       if (!adId) {
         const adName = `Draft Ad - ${new Date().toLocaleString()}`
+        console.log("[AdBuilder] Creating ad:", adName, "with lovableProjectId:", lovableProjectId)
+        
         const createResponse = await fetch(`/api/v1/ads`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
-            campaignId: campaign.id,
+            ...(finalCampaignId ? { campaignId: finalCampaignId } : {}),
+            ...(lovableProjectId ? { lovableProjectId: lovableProjectId } : {}),
             name: adName,
             status: 'draft',
-            lovableProjectId: lovableProjectId || null,
           }),
         })
 
         if (!createResponse.ok) {
-          const error = await createResponse.json()
-          throw new Error(error.error || 'Failed to create draft ad')
+          const errorData = await createResponse.json()
+          console.error("[AdBuilder] Failed to create ad:", errorData)
+          throw new Error(errorData.error?.message || errorData.error || 'Failed to create draft ad')
         }
 
         const createData = await createResponse.json()
-        adId = createData.ad.id
+        adId = createData.data?.ad?.id
+        finalCampaignId = createData.data?.campaignId || createData.data?.ad?.campaign_id
+        
         setDraftAdId(adId)
-        console.log("[AdBuilder] Created draft ad:", adId)
+        
+        // Update campaign in context if it was auto-created
+        if (finalCampaignId && !campaign?.id) {
+          sessionStorage.setItem('lovable_campaign_id', finalCampaignId)
+        }
+        
+        console.log("[AdBuilder] ✅ Created draft ad:", adId, "campaign:", finalCampaignId)
       }
 
       // Step 2: Save ad data sections (matching SaveAdPayload interface)
@@ -338,44 +244,16 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
     setShowExitDialog(false)
   }
 
-  // Auto-link project and create campaign on mount for Lovable projects
+  // Simplified initialization - no complex campaign creation
+  // Campaign is auto-created by API when user saves first ad
   useEffect(() => {
-    async function initializeCampaign() {
-      // Skip if already initialized
-      if (campaignInitialized) return
-      
-      // If already have campaign from context, mark as initialized
-      if (campaign?.id) {
-        setCampaignInitialized(true)
-        console.log("[AdBuilder] Using existing campaign:", campaign.id)
-        return
-      }
-      
-      // If lovableProjectId provided, auto-link and create campaign
-      if (lovableProjectId) {
-        console.log("[AdBuilder] Lovable project detected, initializing...")
-        
-        // Step 1: Auto-link project
-        const linked = await autoLinkProject()
-        if (!linked) {
-          console.error("[AdBuilder] Failed to link project, cannot proceed")
-          toast.error("Please refresh the page and try again")
-          return
-        }
-        
-        // Step 2: Ensure campaign exists
-        console.log("[AdBuilder] Ensuring campaign...")
-        const success = await ensureLovableCampaign()
-        if (success) {
-          setCampaignInitialized(true)
-        }
-      } else {
-        setCampaignInitialized(true)
-      }
+    setCampaignInitialized(true)
+    if (campaign?.id) {
+      console.log("[AdBuilder] Using existing campaign:", campaign.id)
+    } else if (lovableProjectId) {
+      console.log("[AdBuilder] No campaign yet - will be auto-created when ad is saved")
     }
-    
-    initializeCampaign()
-  }, [lovableProjectId, campaign?.id, campaignInitialized])
+  }, [campaign?.id, lovableProjectId])
 
   // Warn before leaving page if there are unsaved changes
   useEffect(() => {
