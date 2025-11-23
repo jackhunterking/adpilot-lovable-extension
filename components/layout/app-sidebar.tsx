@@ -12,10 +12,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Overview", icon: LayoutDashboard, url: "/" },
-  { label: "Ads", icon: Megaphone, url: "/ads" },
-  { label: "Integrations", icon: Zap, url: "/integrations" },
-  { label: "Settings", icon: Settings, url: "/settings" },
+  { label: "Overview", icon: LayoutDashboard, url: "/lovable" },
+  { label: "Ads", icon: Megaphone, url: "/lovable" },
+  { label: "Integrations", icon: Zap, url: "/lovable/campaigns" },
+  { label: "Settings", icon: Settings, url: "/lovable/analytics" },
 ]
 
 export function AppSidebar() {
@@ -39,7 +39,7 @@ export function AppSidebar() {
       {/* Create Ad CTA Button */}
       <div className="p-4 border-b border-border">
         <Button 
-          onClick={() => router.push("/ad/create")}
+          onClick={() => router.push("/lovable")}
           className="w-full gap-2"
           size="default"
         >

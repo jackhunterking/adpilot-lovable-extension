@@ -1,13 +1,14 @@
 /**
  * Feature: Lovable Layout
  * Purpose: Shared layout wrapper with auth check and navigation
+ * Note: Uses AppSidebar (vertical sidebar) instead of LovableNavigation (horizontal tabs)
  */
 
 "use client"
 
 import { ReactNode, useEffect, useState, Suspense } from "react"
 import { useAuth } from "@/components/auth/auth-provider"
-import { LovableNavigation } from "./lovable-navigation"
+import { AppSidebar } from "@/components/layout/app-sidebar"
 import { LovableAuthBlocker } from "./auth-blocker"
 import { AuthModal } from "@/components/auth/auth-modal"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
@@ -179,11 +180,11 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
 
   // authStep === 'ready'
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Suspense fallback={<div className="h-16 border-b" />}>
-        <LovableNavigation />
+    <div className="min-h-screen bg-background flex flex-row">
+      <Suspense fallback={<div className="w-64 border-r" />}>
+        <AppSidebar />
       </Suspense>
-      <main className="flex-1">
+      <main className="flex-1 overflow-auto">
         {children}
       </main>
     </div>
