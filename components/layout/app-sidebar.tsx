@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, TrendingUp, Megaphone, Zap } from "lucide-react"
+import { LayoutDashboard, Settings, Megaphone, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -15,7 +15,7 @@ const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, url: "/lovable?view=overview" },
   { label: "Ads", icon: Megaphone, url: "/lovable?view=all-ads" },
   { label: "Integrations", icon: Zap, url: "/lovable/integrations" },
-  { label: "Analytics", icon: TrendingUp, url: "/lovable/analytics" },
+  { label: "Settings", icon: Settings, url: "/lovable/settings" },
 ]
 
 export function AppSidebar() {
