@@ -137,13 +137,9 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
     !!draft.budget?.amount
 
   const handleCancel = () => {
-    // If there are changes, show exit dialog
-    if (hasUnsavedChanges) {
+    // Always show exit confirmation dialog (unless actively saving)
+    if (!isSaving) {
       setShowExitDialog(true)
-    } else {
-      // No changes, just redirect to ads list
-      const redirectUrl = campaign?.id ? `/${campaign.id}?view=all-ads` : "/ads"
-      router.push(redirectUrl)
     }
   }
 
@@ -185,6 +181,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
             campaignId: campaign.id,
             name: adName,
             status: 'draft',
+            lovableProjectId: lovableProjectId || null,
           }),
         })
 

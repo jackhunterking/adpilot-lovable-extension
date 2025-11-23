@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar"
 import { LovableAuthBlocker } from "./auth-blocker"
 import { AuthModal } from "@/components/auth/auth-modal"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
+import { useFullscreenMode } from "@/lib/context/fullscreen-mode-context"
 import { Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ interface LovableLayoutProps {
 
 export function LovableLayout({ children, requireMeta = false }: LovableLayoutProps) {
   const { user } = useAuth()
+  const { isFullscreen } = useFullscreenMode()
   const [authStep, setAuthStep] = useState<AuthStep>('checking')
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [metaModalOpen, setMetaModalOpen] = useState(false)
@@ -181,9 +183,11 @@ export function LovableLayout({ children, requireMeta = false }: LovableLayoutPr
   // authStep === 'ready'
   return (
     <div className="h-screen bg-background flex flex-row overflow-hidden">
-      <Suspense fallback={<div className="w-64 border-r h-full" />}>
-        <AppSidebar />
-      </Suspense>
+      {!isFullscreen && (
+        <Suspense fallback={<div className="w-64 border-r h-full" />}>
+          <AppSidebar />
+        </Suspense>
+      )}
       <main className="flex-1 overflow-auto h-full">
         {children}
       </main>

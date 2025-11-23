@@ -9,6 +9,7 @@
 import { useCallback } from "react"
 import { AdBuilder } from "@/components/ad-builder/ad-builder"
 import { CampaignProvider } from "@/lib/context/campaign-context"
+import { LovableLayout } from "@/components/lovable/lovable-layout"
 
 export default function LovableCreateAdPage() {
   console.log('[CREATE-AD] Page component mounting')
@@ -33,8 +34,10 @@ export default function LovableCreateAdPage() {
   console.log('[CREATE-AD] Rendering with projectId:', lovableProjectId)
 
   return (
-    <CampaignProvider>
-      <AdBuilder lovableProjectId={lovableProjectId} />
-    </CampaignProvider>
+    <LovableLayout>
+      <CampaignProvider>
+        <AdBuilder lovableProjectId={lovableProjectId} />
+      </CampaignProvider>
+    </LovableLayout>
   )
 }

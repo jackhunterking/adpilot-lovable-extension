@@ -71,11 +71,13 @@ export async function POST(request: NextRequest) {
       name,
       status = "draft",
       meta_ad_id = null,
+      lovableProjectId = null,
     } = body as {
       campaignId?: string
       name?: string
       status?: string
       meta_ad_id?: string | null
+      lovableProjectId?: string | null
     }
 
     if (!campaignId) {
@@ -98,6 +100,7 @@ export async function POST(request: NextRequest) {
         status: status as 'draft' | 'active' | 'paused',
         meta_ad_id,
         metrics_snapshot: null,
+        lovable_project_id: lovableProjectId,
       })
       .select()
       .single()
