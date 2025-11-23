@@ -11,7 +11,7 @@
  * 
  * NOTE: This component triggers the PublishFlowDialog via onPublish callback.
  * The isPublishing prop shows loading state during the simulated publish flow.
- * Budget management is now handled via the WorkspaceHeader.
+ * Budget management is now handled via budget dialog components.
  */
 
 import { Card, CardContent } from "@/components/ui/card"

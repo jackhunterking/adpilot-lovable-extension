@@ -11,7 +11,6 @@
 
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { WorkspaceHeader } from "@/components/workspace-header";
 import { OverviewMode } from "./modes/overview-mode";
 import { BuildMode } from "./modes/build-mode";
 import { EditMode } from "./modes/edit-mode";
@@ -81,10 +80,6 @@ export function CampaignWorkspaceOrchestrator() {
     searchParams,
   });
 
-  // Determine header visibility
-  const showBackButton = workspaceService.shouldShowBackButton(effectiveMode);
-  const showNewAdButton = workspaceService.shouldShowNewAdButton(effectiveMode);
-
   // Render mode-specific component
   const renderMode = () => {
     const modeProps = {
@@ -121,26 +116,7 @@ export function CampaignWorkspaceOrchestrator() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0 relative">
-      <WorkspaceHeader
-        mode={effectiveMode}
-        onBack={showBackButton ? handleBack : undefined}
-        onNewAd={handleNewAd}
-        showBackButton={showBackButton}
-        showNewAdButton={showNewAdButton}
-        campaignStatus={(campaign?.published_status || 'draft') as unknown as import('@/lib/types/workspace').CampaignStatus}
-        totalAds={ads.length}
-        hasPublishedAds={hasPublishedAds}
-        metaConnectionStatus={metaStatus}
-        paymentStatus={paymentStatus}
-        campaignBudget={campaign?.campaign_budget ?? null}
-        onBudgetUpdate={updateBudget}
-        onViewAllAds={handleViewAllAds}
-        isAdPublished={isAdPublished}
-      />
-
-      <div className="flex-1 overflow-hidden h-full min-h-0">
-        {renderMode()}
-      </div>
+      {renderMode()}
     </div>
   );
 }

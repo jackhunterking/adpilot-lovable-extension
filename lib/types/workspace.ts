@@ -197,48 +197,6 @@ export interface WorkspaceState {
 }
 
 // ============================================================================
-// Workspace Header Props
-// ============================================================================
-
-export interface WorkspaceHeaderProps {
-  mode: WorkspaceMode
-  onBack?: () => void        // Optional, only show for specific modes
-  onNewAd: () => void        // Always available after first publish
-  showBackButton?: boolean   // Control visibility
-  showNewAdButton: boolean   // Control visibility
-  campaignStatus?: CampaignStatus
-  abTestInfo?: {
-    day: number
-    totalDays: number
-    testType: string
-  }
-  totalAds?: number          // For all-ads mode display
-  hasPublishedAds?: boolean  // Track if campaign has published ads
-  // Meta Integration & Budget props
-  metaConnectionStatus?: 'disconnected' | 'pending' | 'connected' | 'error' | 'expired'
-  paymentStatus?: 'unknown' | 'verified' | 'missing' | 'flagged' | 'processing'
-  campaignBudget?: number | null
-  onMetaConnect?: () => void
-  onBudgetUpdate?: (budget: number) => Promise<void> | void
-  // Save props (edit mode)
-  onSave?: () => void
-  isSaveDisabled?: boolean
-  // Create Ad props (build mode)
-  onCreateAd?: () => void
-  isCreateAdDisabled?: boolean
-  // NEW: Step-aware publish/save props
-  currentStepId?: string     // Current step ID (e.g., "budget", "ads", "copy")
-  isPublishReady?: boolean   // Whether all requirements are met for publish
-  onSaveDraft?: () => void   // Save draft handler (final step, build mode)
-  onPublish?: () => void     // Publish handler (final step or edit published ad)
-  isPublishing?: boolean     // Loading state during publish
-  currentAdId?: string       // Current ad being edited/built
-  onViewAllAds?: () => void  // Navigate to all ads view
-  isAdPublished?: boolean    // Whether current ad has been published (has meta_ad_id)
-  className?: string
-}
-
-// ============================================================================
 // Results Panel Props
 // ============================================================================
 
