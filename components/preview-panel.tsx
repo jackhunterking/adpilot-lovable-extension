@@ -43,6 +43,7 @@ import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 import { LaunchCampaignView } from "@/components/launch/launch-campaign-view"
 import { logger } from "@/lib/utils/logger"
 import { useSaveAd } from "@/lib/hooks/use-save-ad"
+import { AdMockupFormatToggle } from "@/components/ad-mockup-format-toggle"
 
 export function PreviewPanel() {
   const searchParams = useSearchParams()
