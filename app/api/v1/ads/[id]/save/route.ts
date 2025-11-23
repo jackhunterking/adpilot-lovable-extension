@@ -151,21 +151,8 @@ export async function PUT(
       hasBudget: !!body.budget
     })
 
-    // Validate copy data IF provided
-    if (body.copy) {
-      if (body.copy.variations && body.copy.variations.length > 0) {
-        // Validate each variation has required fields
-        const invalidVariation = body.copy.variations.find((v: { headline?: string; primaryText?: string }) => 
-          !v.headline || !v.primaryText
-        )
-        if (invalidVariation) {
-          return NextResponse.json(
-            { success: false, error: 'Copy variations must include headline and primaryText' } as SaveAdResponse,
-            { status: 400 }
-          )
-        }
-      }
-    }
+    // Note: Copy validation removed to allow saving incomplete drafts
+    // Validation occurs during publish, not during draft saves
 
     // Validate creative data IF provided
     if (body.creative) {
