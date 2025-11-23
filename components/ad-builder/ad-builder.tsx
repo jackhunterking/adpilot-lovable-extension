@@ -362,9 +362,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {} }: AdBuilderProp
 
   return (
     <LocationTargetingProvider>
-      {console.log('[AD-BUILDER] LocationTargetingProvider rendered')}
       <div className="flex flex-col h-full bg-background">
-        {console.log('[AD-BUILDER] Main div rendering')}
         {/* Minimal Header */}
         <div className="border-b border-border bg-card">
           <div className="container mx-auto px-6 py-4 flex items-center justify-between">

@@ -20,21 +20,13 @@ export function Providers({ children }: { children: ReactNode }) {
   
   return (
     <CurrentAdProvider>
-      {console.log('[PROVIDERS] CurrentAdProvider rendered')}
       <GoalProvider>
-        {console.log('[PROVIDERS] GoalProvider rendered')}
         <DestinationProvider>
-          {console.log('[PROVIDERS] DestinationProvider rendered')}
           <GenerationProvider>
-            {console.log('[PROVIDERS] GenerationProvider rendered')}
             <BudgetProvider>
-              {console.log('[PROVIDERS] BudgetProvider rendered')}
               <AdCopyProvider>
-                {console.log('[PROVIDERS] AdCopyProvider rendered')}
                 <LocationProvider>
-                  {console.log('[PROVIDERS] LocationProvider rendered')}
                   <AdPreviewProvider>
-                    {console.log('[PROVIDERS] AdPreviewProvider rendered')}
                     {children}
                   </AdPreviewProvider>
                 </LocationProvider>

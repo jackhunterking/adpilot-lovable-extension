@@ -34,7 +34,6 @@ export default function LovableCreateAdPage() {
 
   return (
     <CampaignProvider>
-      {console.log('[CREATE-AD] CampaignProvider rendered')}
       <AdBuilder lovableProjectId={lovableProjectId} />
     </CampaignProvider>
   )
