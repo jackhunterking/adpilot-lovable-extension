@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { AllAdsGrid } from '@/components/all-ads-grid';
+import { toast } from 'sonner';
 
 import type { WorkspaceMode } from '@/lib/services/client/workspace-service-client';
 
@@ -25,19 +26,75 @@ export interface AllAdsModeProps {
  * Shows grid of all ads
  */
 export function AllAdsMode(props: AllAdsModeProps) {
-  // Placeholder handlers - will be implemented with full service integration
   const handlePublishAd = async (adId: string) => {
-    console.log('[AllAdsMode] Publish ad:', adId);
+    try {
+      const response = await fetch(`/api/v1/ads/${adId}/publish`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error?.message || 'Failed to publish ad');
+        return;
+      }
+
+      await props.refreshAds();
+      toast.success('Ad published successfully');
+    } catch (error) {
+      console.error('[AllAdsMode] Publish ad error:', error);
+      toast.error('Failed to publish ad');
+    }
   };
   
   const handlePauseAd = async (adId: string) => {
-    console.log('[AllAdsMode] Pause ad:', adId);
-    return true;
+    try {
+      const response = await fetch(`/api/v1/ads/${adId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'paused' }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error?.message || 'Failed to pause ad');
+        return false;
+      }
+
+      await props.refreshAds();
+      toast.success('Ad paused successfully');
+      return true;
+    } catch (error) {
+      console.error('[AllAdsMode] Pause ad error:', error);
+      toast.error('Failed to pause ad');
+      return false;
+    }
   };
   
   const handleResumeAd = async (adId: string) => {
-    console.log('[AllAdsMode] Resume ad:', adId);
-    return true;
+    try {
+      const response = await fetch(`/api/v1/ads/${adId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'active' }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error?.message || 'Failed to resume ad');
+        return false;
+      }
+
+      await props.refreshAds();
+      toast.success('Ad resumed successfully');
+      return true;
+    } catch (error) {
+      console.error('[AllAdsMode] Resume ad error:', error);
+      toast.error('Failed to resume ad');
+      return false;
+    }
   };
   
   const handleCreateABTest = (adId: string) => {
@@ -45,8 +102,24 @@ export function AllAdsMode(props: AllAdsModeProps) {
   };
   
   const handleDeleteAd = async (adId: string) => {
-    console.log('[AllAdsMode] Delete ad:', adId);
-    await props.refreshAds();
+    try {
+      const response = await fetch(`/api/v1/ads/${adId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error?.message || 'Failed to delete ad');
+        return;
+      }
+
+      await props.refreshAds();
+      toast.success('Ad deleted successfully');
+    } catch (error) {
+      console.error('[AllAdsMode] Delete ad error:', error);
+      toast.error('Failed to delete ad');
+    }
   };
   
   const handleNewAd = () => {
