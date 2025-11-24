@@ -20,7 +20,6 @@ import { usePostService } from "@/lib/services/service-provider"
 
 // Step components
 import { ContentAndMedia } from "./steps/content-and-media"
-import { PlatformsAndSchedule } from "./steps/platforms-and-schedule"
 import { ReviewAndPublish } from "./steps/review-and-publish"
 
 // Export types for use in step components
@@ -28,8 +27,7 @@ export type { PostDraft, PostBuilderStepProps }
 
 const steps: PostBuilderStep[] = [
   { id: 1, name: "Content & Media", component: ContentAndMedia },
-  { id: 2, name: "Platforms & Schedule", component: PlatformsAndSchedule },
-  { id: 3, name: "Review & Publish", component: ReviewAndPublish },
+  { id: 2, name: "Review & Publish", component: ReviewAndPublish },
 ]
 
 interface PostBuilderProps {
@@ -184,20 +182,17 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   // Step-specific validation
   const canProceed = (() => {
     switch (currentStep) {
-      case 1: // Content & Media (now includes platforms & scheduling)
+      case 1: // Content & Media
         // Must have text or media
-        const hasContent = !!(draft.postText?.trim() || draft.mediaUrl)
+        return !!(draft.postText?.trim() || draft.mediaUrl)
+      case 2: // Review & Publish
         // Must have at least one platform selected
         const hasPlatform = draft.publishToFacebook || draft.publishToInstagram
         // If scheduled, must have a date/time
         const hasValidSchedule = draft.scheduleType === 'immediate' || 
           (draft.scheduleType === 'scheduled' && !!draft.scheduledAt)
         
-        return hasContent && hasPlatform && hasValidSchedule
-      case 2: // Platforms & Schedule (now simplified or could be review)
-        return true
-      case 3: // Review & Publish
-        return true // Always enabled on last step
+        return hasPlatform && hasValidSchedule
       default:
         return true
     }
