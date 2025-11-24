@@ -10,10 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Check, Facebook, Instagram, Zap, X, ExternalLink, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Check, Facebook, Instagram, Zap, X, ExternalLink, AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { usePlatformConnections } from "@/lib/hooks/use-platform-connections"
+import { useMetaService } from "@/lib/services/service-provider"
+import { useCampaignContext } from "@/lib/context/campaign-context"
+import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 
@@ -30,7 +33,10 @@ export default function IntegrationsPage() {
   const { metaStatus, paymentStatus } = useMetaConnection()
   const metaActions = useMetaActions()
   const { facebookConnected, instagramConnected, facebookPageName, instagramUsername } = usePlatformConnections()
+  const metaService = useMetaService()
+  const { campaign } = useCampaignContext()
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const fromPosts = searchParams?.get('from') === 'posts'
 
@@ -38,6 +44,31 @@ export default function IntegrationsPage() {
     setIsConnecting(true)
     metaActions.connect()
     setTimeout(() => setIsConnecting(false), 1000)
+  }
+
+  const handleDisconnect = async (integrationId: string) => {
+    if (!campaign?.id) {
+      toast.error("No campaign selected")
+      return
+    }
+
+    setIsDisconnecting(integrationId)
+    
+    try {
+      const result = await metaService.disconnect.execute(campaign.id)
+      
+      if (result.success) {
+        toast.success("Integration disconnected successfully")
+        // Reload to reflect changes
+        window.location.reload()
+      } else {
+        toast.error(result.error.message || "Failed to disconnect")
+      }
+    } catch (error) {
+      toast.error("An error occurred while disconnecting")
+    } finally {
+      setIsDisconnecting(null)
+    }
   }
 
   const integrations: Integration[] = [
@@ -66,14 +97,6 @@ export default function IntegrationsPage() {
       category: 'advertising'
     },
     {
-      id: 'google-analytics',
-      name: 'Google Analytics',
-      description: 'Track user behavior and campaign performance with Google Analytics.',
-      icon: Zap,
-      status: 'available',
-      category: 'analytics'
-    },
-    {
       id: 'pixel-tracking',
       name: 'Meta Pixel',
       description: 'Track conversions and optimize ads with Meta Pixel.',
@@ -100,11 +123,7 @@ export default function IntegrationsPage() {
           </Badge>
         )
       default:
-        return (
-          <Badge variant="outline">
-            Available
-          </Badge>
-        )
+        return null
     }
   }
 
@@ -129,85 +148,6 @@ export default function IntegrationsPage() {
           </Alert>
         )}
 
-        {/* Connected Accounts Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Social Media Accounts</CardTitle>
-            <CardDescription>
-              Manage your connected Facebook and Instagram accounts for posting
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Facebook Connection Status */}
-            <div className="flex items-center justify-between p-4 rounded-lg border">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Facebook className="w-5 h-5 text-[#1877F2]" />
-                </div>
-                <div>
-                  <div className="font-medium">Facebook Page</div>
-                  {facebookConnected ? (
-                    <div className="text-sm text-muted-foreground">
-                      {facebookPageName || 'Connected'}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      Not connected
-                    </div>
-                  )}
-                </div>
-              </div>
-              {facebookConnected ? (
-                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                  Connected
-                </Badge>
-              ) : (
-                <Badge variant="outline">Not connected</Badge>
-              )}
-            </div>
-
-            {/* Instagram Connection Status */}
-            <div className="flex items-center justify-between p-4 rounded-lg border">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                  <Instagram className="w-5 h-5 text-[#E4405F]" />
-                </div>
-                <div>
-                  <div className="font-medium">Instagram Account</div>
-                  {instagramConnected ? (
-                    <div className="text-sm text-muted-foreground">
-                      @{instagramUsername || 'Connected'}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      Not connected
-                    </div>
-                  )}
-                </div>
-              </div>
-              {instagramConnected ? (
-                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                  Connected
-                </Badge>
-              ) : (
-                <Badge variant="outline">Not connected</Badge>
-              )}
-            </div>
-
-            {/* Connection Instructions */}
-            {!facebookConnected && !instagramConnected && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Connect your Meta Business account below to link your Facebook Page and Instagram account.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Integrations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {integrations.map((integration) => {
@@ -217,9 +157,10 @@ export default function IntegrationsPage() {
             const isInstagramAccount = integration.id === 'instagram-account'
             const isConnected = integration.status === 'connected'
             const isConnectionCard = isMetaBusiness || isFacebookPage || isInstagramAccount
+            const currentlyDisconnecting = isDisconnecting === integration.id
             
             return (
-              <Card key={integration.id} className="hover:shadow-lg transition-shadow">
+              <Card key={integration.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -248,83 +189,139 @@ export default function IntegrationsPage() {
                     {getStatusBadge(integration.status)}
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
+                <CardContent className="flex flex-col flex-1">
+                  <p className="text-sm text-muted-foreground flex-1">
                     {integration.description}
                   </p>
                   
-                  {isMetaBusiness ? (
-                    <Button
-                      className="w-full"
-                      variant={isConnected ? "outline" : "default"}
-                      onClick={() => metaActions.connectBusiness()}
-                      disabled={isConnecting || isConnected}
-                    >
-                      {isConnecting ? (
-                        "Connecting..."
-                      ) : isConnected ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Connected
-                        </>
+                  <div className="mt-4">
+                    {isMetaBusiness ? (
+                      isConnected ? (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          onClick={() => handleDisconnect(integration.id)}
+                          disabled={currentlyDisconnecting || isConnecting}
+                        >
+                          {currentlyDisconnecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Disconnecting...
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4 mr-2" />
+                              Disconnect
+                            </>
+                          )}
+                        </Button>
                       ) : (
-                        <>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Connect Business
-                        </>
-                      )}
-                    </Button>
-                  ) : isFacebookPage ? (
-                    <Button
-                      className="w-full"
-                      variant={isConnected ? "outline" : "default"}
-                      onClick={() => metaActions.connectPage()}
-                      disabled={isConnecting || isConnected}
-                    >
-                      {isConnecting ? (
-                        "Connecting..."
-                      ) : isConnected ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Connected
-                        </>
+                        <Button
+                          className="w-full"
+                          onClick={() => metaActions.connectBusiness()}
+                          disabled={isConnecting || currentlyDisconnecting}
+                        >
+                          {isConnecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Connect Business
+                            </>
+                          )}
+                        </Button>
+                      )
+                    ) : isFacebookPage ? (
+                      isConnected ? (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          onClick={() => handleDisconnect(integration.id)}
+                          disabled={currentlyDisconnecting || isConnecting}
+                        >
+                          {currentlyDisconnecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Disconnecting...
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4 mr-2" />
+                              Disconnect
+                            </>
+                          )}
+                        </Button>
                       ) : (
-                        <>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Connect Page
-                        </>
-                      )}
-                    </Button>
-                  ) : isInstagramAccount ? (
-                    <Button
-                      className="w-full"
-                      variant={isConnected ? "outline" : "default"}
-                      onClick={() => metaActions.connectInstagram()}
-                      disabled={isConnecting || isConnected}
-                    >
-                      {isConnecting ? (
-                        "Connecting..."
-                      ) : isConnected ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Connected
-                        </>
+                        <Button
+                          className="w-full"
+                          onClick={() => metaActions.connectPage()}
+                          disabled={isConnecting || currentlyDisconnecting}
+                        >
+                          {isConnecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Connect Page
+                            </>
+                          )}
+                        </Button>
+                      )
+                    ) : isInstagramAccount ? (
+                      isConnected ? (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          onClick={() => handleDisconnect(integration.id)}
+                          disabled={currentlyDisconnecting || isConnecting}
+                        >
+                          {currentlyDisconnecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Disconnecting...
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4 mr-2" />
+                              Disconnect
+                            </>
+                          )}
+                        </Button>
                       ) : (
-                        <>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Connect Instagram
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      disabled
-                    >
-                      Coming Soon
-                    </Button>
-                  )}
+                        <Button
+                          className="w-full"
+                          onClick={() => metaActions.connectInstagram()}
+                          disabled={isConnecting || currentlyDisconnecting}
+                        >
+                          {isConnecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Connect Instagram
+                            </>
+                          )}
+                        </Button>
+                      )
+                    ) : (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        disabled
+                      >
+                        Coming Soon
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )
