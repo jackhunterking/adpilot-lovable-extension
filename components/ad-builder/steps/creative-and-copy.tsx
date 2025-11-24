@@ -296,6 +296,7 @@ Requirements:
                           Upload Image
                         </>
                       )}
+                    </Button>
                   </div>
                 )}
               </CardContent>
