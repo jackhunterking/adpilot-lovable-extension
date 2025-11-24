@@ -22,6 +22,8 @@ import { PostPreviewPanel } from "../post-preview-panel"
 import { useState, useEffect, useCallback } from "react"
 import { usePostService } from "@/lib/services/service-provider"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
+import { usePlatformConnections } from "@/lib/hooks/use-platform-connections"
+import { validatePostForPlatforms } from "@/lib/types/post-validation"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -31,6 +33,7 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
   const postService = usePostService()
   const router = useRouter()
   const { metaStatus } = useMetaConnection()
+  const { facebookConnected, instagramConnected } = usePlatformConnections()
   const [isPublishing, setIsPublishing] = useState(false)
   const [previewTab, setPreviewTab] = useState<'facebook' | 'instagram'>('facebook')
   
@@ -111,10 +114,15 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
   // Check if Meta is connected
   const isMetaConnected = metaStatus === 'connected'
 
+  // Validate post content for platforms
+  const validation = validatePostForPlatforms(draft)
+
   // Validation
   const canPublish = !!(draft.publishToFacebook || draft.publishToInstagram) &&
     (draft.scheduleType === 'immediate' || (draft.scheduleType === 'scheduled' && draft.scheduledAt)) &&
-    isMetaConnected
+    isMetaConnected &&
+    (!draft.publishToFacebook || validation.canPublishToFacebook) &&
+    (!draft.publishToInstagram || validation.canPublishToInstagram)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -142,6 +150,7 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Facebook Checkbox */}
             <div className="flex items-start space-x-3">
               <Checkbox
                 id="facebook"
@@ -150,25 +159,35 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
                   onUpdate({ publishToFacebook: !!checked })
                   if (checked) setPreviewTab('facebook')
                 }}
-                disabled={!isMetaConnected}
+                disabled={!facebookConnected}
               />
               <div className="flex-1 space-y-1">
                 <Label
                   htmlFor="facebook"
                   className={cn(
                     "flex items-center gap-2 text-base font-medium cursor-pointer",
-                    !isMetaConnected && "opacity-50 cursor-not-allowed"
+                    !facebookConnected && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   <Facebook className="h-4 w-4 text-[#1877F2]" />
                   Facebook
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Post to your Facebook Page
+                  {facebookConnected ? (
+                    "Post to your Facebook Page"
+                  ) : (
+                    <>
+                      Not connected -{" "}
+                      <Link href="/lovable/integrations" className="underline">
+                        Connect now
+                      </Link>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
 
+            {/* Instagram Checkbox */}
             <div className="flex items-start space-x-3">
               <Checkbox
                 id="instagram"
@@ -177,27 +196,35 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
                   onUpdate({ publishToInstagram: !!checked })
                   if (checked) setPreviewTab('instagram')
                 }}
-                disabled={!isMetaConnected}
+                disabled={!instagramConnected || !validation.canPublishToInstagram}
               />
               <div className="flex-1 space-y-1">
                 <Label
                   htmlFor="instagram"
                   className={cn(
                     "flex items-center gap-2 text-base font-medium cursor-pointer",
-                    !isMetaConnected && "opacity-50 cursor-not-allowed"
+                    (!instagramConnected || !validation.canPublishToInstagram) && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   <Instagram className="h-4 w-4 text-[#E4405F]" />
                   Instagram
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Post to your Instagram account
+                  {!instagramConnected ? (
+                    <>
+                      Not connected -{" "}
+                      <Link href="/lovable/integrations" className="underline">
+                        Connect now
+                      </Link>
+                    </>
+                  ) : !validation.canPublishToInstagram ? (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      ⚠️ Image required - Upload an image in the previous step
+                    </span>
+                  ) : (
+                    "Post to your Instagram account"
+                  )}
                 </p>
-                {draft.publishToInstagram && !draft.mediaUrl && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    ⚠️ Instagram requires an image or video
-                  </p>
-                )}
               </div>
             </div>
 

@@ -9,10 +9,13 @@ import { LovableLayout } from "@/components/lovable/lovable-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Check, Facebook, Zap, X, ExternalLink } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Check, Facebook, Instagram, Zap, X, ExternalLink, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
-import { useState } from "react"
+import { usePlatformConnections } from "@/lib/hooks/use-platform-connections"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 
 interface Integration {
   id: string
@@ -26,7 +29,10 @@ interface Integration {
 export default function IntegrationsPage() {
   const { metaStatus, paymentStatus } = useMetaConnection()
   const metaActions = useMetaActions()
+  const { facebookConnected, instagramConnected, facebookPageName, instagramUsername } = usePlatformConnections()
   const [isConnecting, setIsConnecting] = useState(false)
+  const searchParams = useSearchParams()
+  const fromPosts = searchParams?.get('from') === 'posts'
 
   const handleMetaConnect = () => {
     setIsConnecting(true)
@@ -104,6 +110,95 @@ export default function IntegrationsPage() {
             Connect third-party services to enhance your advertising capabilities
           </p>
         </div>
+
+        {/* "From Posts" Banner */}
+        {fromPosts && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Connect your Facebook or Instagram account to start creating posts.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Connected Accounts Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Social Media Accounts</CardTitle>
+            <CardDescription>
+              Manage your connected Facebook and Instagram accounts for posting
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Facebook Connection Status */}
+            <div className="flex items-center justify-between p-4 rounded-lg border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Facebook className="w-5 h-5 text-[#1877F2]" />
+                </div>
+                <div>
+                  <div className="font-medium">Facebook Page</div>
+                  {facebookConnected ? (
+                    <div className="text-sm text-muted-foreground">
+                      {facebookPageName || 'Connected'}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Not connected
+                    </div>
+                  )}
+                </div>
+              </div>
+              {facebookConnected ? (
+                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="outline">Not connected</Badge>
+              )}
+            </div>
+
+            {/* Instagram Connection Status */}
+            <div className="flex items-center justify-between p-4 rounded-lg border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                  <Instagram className="w-5 h-5 text-[#E4405F]" />
+                </div>
+                <div>
+                  <div className="font-medium">Instagram Account</div>
+                  {instagramConnected ? (
+                    <div className="text-sm text-muted-foreground">
+                      @{instagramUsername || 'Connected'}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Not connected
+                    </div>
+                  )}
+                </div>
+              </div>
+              {instagramConnected ? (
+                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="outline">Not connected</Badge>
+              )}
+            </div>
+
+            {/* Connection Instructions */}
+            {!facebookConnected && !instagramConnected && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  Connect your Meta Business account below to link your Facebook Page and Instagram account.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Integrations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

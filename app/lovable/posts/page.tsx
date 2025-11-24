@@ -11,12 +11,23 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { AllPostsGrid } from "@/components/posts/all-posts-grid"
+import { usePlatformConnections } from "@/lib/hooks/use-platform-connections"
+import { ConnectionPromptModal } from "@/components/posts/connection-prompt-modal"
 
 export default function PostsPage() {
   const router = useRouter()
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [showConnectionModal, setShowConnectionModal] = useState(false)
+  const { facebookConnected, instagramConnected, loading } = usePlatformConnections()
 
   const handleCreatePost = () => {
+    // Check if at least one platform is connected
+    if (!facebookConnected && !instagramConnected) {
+      setShowConnectionModal(true)
+      return
+    }
+
+    // Proceed to post builder
     router.push('/lovable/posts/create')
   }
 
@@ -44,6 +55,14 @@ export default function PostsPage() {
         {/* Posts Grid */}
         <AllPostsGrid refreshTrigger={refreshTrigger} />
       </div>
+
+      {/* Connection Prompt Modal */}
+      <ConnectionPromptModal
+        open={showConnectionModal}
+        onOpenChange={setShowConnectionModal}
+        facebookConnected={facebookConnected}
+        instagramConnected={instagramConnected}
+      />
     </LovableLayout>
   )
 }

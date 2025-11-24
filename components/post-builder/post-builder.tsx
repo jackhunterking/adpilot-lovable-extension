@@ -17,6 +17,8 @@ import { useAutoFullscreen } from "@/lib/context/fullscreen-mode-context"
 import { ExitConfirmationDialog } from "./exit-confirmation-dialog"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { usePostService } from "@/lib/services/service-provider"
+import { usePlatformConnections } from "@/lib/hooks/use-platform-connections"
+import { validatePostForPlatforms } from "@/lib/types/post-validation"
 
 // Step components
 import { ContentAndMedia } from "./steps/content-and-media"
@@ -43,6 +45,7 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   const router = useRouter()
   const { campaign } = useCampaignContext()
   const postService = usePostService()
+  const { facebookConnected, instagramConnected } = usePlatformConnections()
   const [currentStep, setCurrentStep] = useState(1)
   const [draft, setDraft] = useState<PostDraft>({
     publishToFacebook: true,
@@ -60,10 +63,22 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   useAutoFullscreen()
 
   const handleUpdate = (updates: Partial<PostDraft>) => {
-    setDraft((prev) => ({
-      ...prev,
-      ...updates,
-    }))
+    setDraft((prev) => {
+      const newDraft = {
+        ...prev,
+        ...updates,
+      }
+
+      // Auto-uncheck Instagram if media is removed AND Instagram is selected
+      if (updates.mediaUrl === undefined && prev.mediaUrl && prev.publishToInstagram) {
+        newDraft.publishToInstagram = false
+        toast.warning("Instagram requires an image - Instagram has been unchecked", {
+          description: "Upload an image to post to Instagram",
+        })
+      }
+
+      return newDraft
+    })
   }
 
   const handleNext = () => {
@@ -257,13 +272,26 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
         // Must have text or media
         return !!(draft.postText?.trim() || draft.mediaUrl)
       case 2: // Review & Publish
+        // Validate content for platforms
+        const validation = validatePostForPlatforms(draft)
+        
         // Must have at least one platform selected
         const hasPlatform = draft.publishToFacebook || draft.publishToInstagram
+        
+        // Check connection status
+        const hasConnection = (draft.publishToFacebook && facebookConnected) || 
+                             (draft.publishToInstagram && instagramConnected)
+        
+        // Validate platform-specific requirements
+        const platformValid = 
+          (!draft.publishToFacebook || validation.canPublishToFacebook) &&
+          (!draft.publishToInstagram || validation.canPublishToInstagram)
+        
         // If scheduled, must have a date/time
         const hasValidSchedule = draft.scheduleType === 'immediate' || 
           (draft.scheduleType === 'scheduled' && !!draft.scheduledAt)
         
-        return hasPlatform && hasValidSchedule
+        return hasPlatform && hasConnection && platformValid && hasValidSchedule
       default:
         return true
     }

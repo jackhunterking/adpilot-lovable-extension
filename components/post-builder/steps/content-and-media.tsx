@@ -10,17 +10,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Upload, X, Image as ImageIcon, Video, Loader2, ChevronDown } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Upload, X, Image as ImageIcon, Video, Loader2, ChevronDown, Facebook, Instagram, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react"
 import { useState, useRef } from "react"
 import type { PostBuilderStepProps } from "@/lib/types/post"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { PostPreviewPanel } from "../post-preview-panel"
+import { usePlatformConnections } from "@/lib/hooks/use-platform-connections"
+import Link from "next/link"
 
 export function ContentAndMedia({ draft, onUpdate }: PostBuilderStepProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [previewTab, setPreviewTab] = useState<'facebook' | 'instagram'>('facebook')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { facebookConnected, instagramConnected, loading: connectionsLoading } = usePlatformConnections()
+
+  const anyConnected = facebookConnected || instagramConnected
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -90,6 +96,44 @@ export function ContentAndMedia({ draft, onUpdate }: PostBuilderStepProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
       {/* Left Column: Form */}
       <div className="space-y-6 animate-in fade-in-50 slide-in-from-left-4 duration-500">
+        {/* Connection Status Banner */}
+        {!anyConnected && !connectionsLoading && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              No accounts connected. Please connect your Facebook or Instagram account to create posts.
+              <Link href="/lovable/integrations" className="ml-2 underline inline-flex items-center gap-1">
+                Go to Integrations <ExternalLink className="h-3 w-3" />
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {anyConnected && (
+          <Card className="bg-muted/50">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-4">
+                <div className="text-xs font-medium text-muted-foreground">Connected:</div>
+                <div className="flex items-center gap-3">
+                  {facebookConnected && (
+                    <Badge variant="outline" className="border-green-500 text-green-700 dark:text-green-300">
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      <Facebook className="mr-1 h-3 w-3" />
+                      Facebook
+                    </Badge>
+                  )}
+                  {instagramConnected && (
+                    <Badge variant="outline" className="border-green-500 text-green-700 dark:text-green-300">
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      <Instagram className="mr-1 h-3 w-3" />
+                      Instagram
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Post Text */}
         <Card>
           <CardHeader>
@@ -126,7 +170,7 @@ export function ContentAndMedia({ draft, onUpdate }: PostBuilderStepProps) {
           <CardHeader>
             <CardTitle>Media</CardTitle>
             <CardDescription>
-              Share photos or a video. Instagram posts can't exceed 10 photos.
+              Share photos or a video. <strong>Note: Instagram requires an image.</strong>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

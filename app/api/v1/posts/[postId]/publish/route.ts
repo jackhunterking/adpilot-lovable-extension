@@ -38,6 +38,49 @@ export async function POST(
       );
     }
 
+    const post = getResult.data;
+
+    // Backend validation: Check Meta connections if publishing to Meta platforms
+    if (post.publish_to_facebook || post.publish_to_instagram) {
+      if (!post.campaign_id) {
+        return NextResponse.json(
+          { error: 'Post must be associated with a campaign' },
+          { status: 400 }
+        );
+      }
+
+      // Check campaign_meta_connections for required accounts
+      const { data: metaConnection } = await supabase
+        .from('campaign_meta_connections')
+        .select('selected_page_id, selected_ig_user_id')
+        .eq('campaign_id', post.campaign_id)
+        .single();
+
+      // Validate Facebook connection
+      if (post.publish_to_facebook && !metaConnection?.selected_page_id) {
+        return NextResponse.json(
+          { error: 'Facebook Page not connected. Please connect your Facebook Page in Integrations.' },
+          { status: 400 }
+        );
+      }
+
+      // Validate Instagram connection
+      if (post.publish_to_instagram && !metaConnection?.selected_ig_user_id) {
+        return NextResponse.json(
+          { error: 'Instagram account not connected. Please connect your Instagram account in Integrations.' },
+          { status: 400 }
+        );
+      }
+
+      // Validate Instagram requires media
+      if (post.publish_to_instagram && !post.media_url) {
+        return NextResponse.json(
+          { error: 'Instagram posts require an image or video. Please upload media.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const result = await postServiceServer.publishPost.execute({
       postId: params.postId,
     });
