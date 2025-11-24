@@ -184,12 +184,18 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   // Step-specific validation
   const canProceed = (() => {
     switch (currentStep) {
-      case 1: // Content & Media
+      case 1: // Content & Media (now includes platforms & scheduling)
         // Must have text or media
-        return !!(draft.postText?.trim() || draft.mediaUrl)
-      case 2: // Platforms & Schedule
+        const hasContent = !!(draft.postText?.trim() || draft.mediaUrl)
         // Must have at least one platform selected
-        return draft.publishToFacebook || draft.publishToInstagram
+        const hasPlatform = draft.publishToFacebook || draft.publishToInstagram
+        // If scheduled, must have a date/time
+        const hasValidSchedule = draft.scheduleType === 'immediate' || 
+          (draft.scheduleType === 'scheduled' && !!draft.scheduledAt)
+        
+        return hasContent && hasPlatform && hasValidSchedule
+      case 2: // Platforms & Schedule (now simplified or could be review)
+        return true
       case 3: // Review & Publish
         return true // Always enabled on last step
       default:

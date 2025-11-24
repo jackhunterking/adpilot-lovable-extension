@@ -1,197 +1,155 @@
 "use client"
 
+/**
+ * Platforms & Schedule Step (Simplified)
+ * This step is now mostly handled in Step 1, so this serves as a confirmation/review
+ */
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CalendarIcon, Facebook, Instagram } from "lucide-react"
+import { Facebook, Instagram, Calendar, Clock, CheckCircle2 } from "lucide-react"
 import { format } from "date-fns"
-import { useState } from "react"
 import type { PostBuilderStepProps } from "@/lib/types/post"
-import { cn } from "@/lib/utils"
 
-export function PlatformsAndSchedule({ draft, onUpdate }: PostBuilderStepProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    draft.scheduledAt ? new Date(draft.scheduledAt) : undefined
-  )
-  const [selectedTime, setSelectedTime] = useState(
-    draft.scheduledAt ? format(new Date(draft.scheduledAt), 'HH:mm') : '12:00'
-  )
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date)
-    if (date) {
-      const [hours, minutes] = selectedTime.split(':')
-      date.setHours(parseInt(hours), parseInt(minutes))
-      onUpdate({ scheduledAt: date.toISOString() })
-    }
-  }
-
-  const handleTimeChange = (time: string) => {
-    setSelectedTime(time)
-    if (selectedDate) {
-      const [hours, minutes] = time.split(':')
-      const newDate = new Date(selectedDate)
-      newDate.setHours(parseInt(hours), parseInt(minutes))
-      onUpdate({ scheduledAt: newDate.toISOString() })
-    }
-  }
+export function PlatformsAndSchedule({ draft, onBack }: PostBuilderStepProps) {
+  const scheduledDate = draft.scheduledAt ? new Date(draft.scheduledAt) : null
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">Platforms & Schedule</h2>
+        <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
+        <h2 className="text-3xl font-bold">Ready to Review</h2>
         <p className="text-muted-foreground text-lg">
-          Choose where and when to publish
+          Your post settings have been configured
         </p>
       </div>
 
-      {/* Platform Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Platforms</CardTitle>
-          <CardDescription>
-            Choose which platforms to publish your post to
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start space-x-3">
-            <Checkbox
-              id="facebook"
-              checked={draft.publishToFacebook}
-              onCheckedChange={(checked) => onUpdate({ publishToFacebook: !!checked })}
-            />
-            <div className="flex-1 space-y-1">
-              <Label
-                htmlFor="facebook"
-                className="flex items-center gap-2 text-base font-medium cursor-pointer"
-              >
-                <Facebook className="h-5 w-5 text-blue-600" />
-                Facebook
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Post to your Facebook Page
-              </p>
-            </div>
-          </div>
+      {/* Summary Cards */}
+      <div className="grid gap-4">
+        {/* Platforms Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Publishing To</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {draft.publishToFacebook && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-[#1877F2]/10 border border-[#1877F2]/20">
+                <Facebook className="h-5 w-5 text-[#1877F2]" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Facebook</p>
+                  <p className="text-xs text-muted-foreground">Post to your Facebook Page</p>
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-100">
+                  Selected
+                </Badge>
+              </div>
+            )}
+            
+            {draft.publishToInstagram && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-[#E4405F]/10 border border-[#E4405F]/20">
+                <Instagram className="h-5 w-5 text-[#E4405F]" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Instagram</p>
+                  <p className="text-xs text-muted-foreground">Post to your Instagram account</p>
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-100">
+                  Selected
+                </Badge>
+              </div>
+            )}
 
-          <div className="flex items-start space-x-3">
-            <Checkbox
-              id="instagram"
-              checked={draft.publishToInstagram}
-              onCheckedChange={(checked) => onUpdate({ publishToInstagram: !!checked })}
-            />
-            <div className="flex-1 space-y-1">
-              <Label
-                htmlFor="instagram"
-                className="flex items-center gap-2 text-base font-medium cursor-pointer"
-              >
-                <Instagram className="h-5 w-5 text-pink-600" />
-                Instagram
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Post to your Instagram account
-              </p>
-              {draft.publishToInstagram && !draft.mediaUrl && (
-                <p className="text-sm text-yellow-600">
-                  ⚠️ Instagram requires an image or video
+            {!draft.publishToFacebook && !draft.publishToInstagram && (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                No platforms selected
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Schedule Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Schedule</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {draft.scheduleType === 'immediate' ? (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <Clock className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <p className="font-semibold text-sm">Publish Immediately</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your post will be published as soon as you complete the setup
+                  </p>
+                </div>
+              </div>
+            ) : scheduledDate ? (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <Calendar className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <p className="font-semibold text-sm">Scheduled</p>
+                  <p className="text-sm text-foreground mt-1">
+                    {format(scheduledDate, 'PPPP')} at {format(scheduledDate, 'p')}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your post will be automatically published at this time
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-amber-600 text-sm">
+                ⚠️ Schedule not configured
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Content Preview */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Content Preview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {draft.postText && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Text</p>
+                <p className="text-sm bg-muted/50 p-3 rounded-lg whitespace-pre-wrap line-clamp-4">
+                  {draft.postText}
                 </p>
-              )}
-            </div>
-          </div>
-
-          {!draft.publishToFacebook && !draft.publishToInstagram && (
-            <p className="text-sm text-red-600">
-              Please select at least one platform
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Schedule */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule</CardTitle>
-          <CardDescription>
-            Publish immediately or schedule for later
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <RadioGroup
-            value={draft.scheduleType}
-            onValueChange={(value) => onUpdate({ scheduleType: value as 'immediate' | 'scheduled' })}
-          >
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem value="immediate" id="immediate" />
-              <Label htmlFor="immediate" className="cursor-pointer">
-                Publish immediately
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem value="scheduled" id="scheduled" />
-              <Label htmlFor="scheduled" className="cursor-pointer">
-                Schedule for later
-              </Label>
-            </div>
-          </RadioGroup>
-
-          {draft.scheduleType === 'scheduled' && (
-            <div className="space-y-4 pl-7">
-              {/* Date Picker */}
-              <div className="space-y-2">
-                <Label>Select Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
+              </div>
+            )}
+            
+            {draft.mediaUrl && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Media</p>
+                <div className="rounded-lg overflow-hidden bg-muted max-w-sm">
+                  {draft.mediaType === 'image' ? (
+                    <img
+                      src={draft.mediaUrl}
+                      alt="Post media"
+                      className="w-full h-auto"
                     />
-                  </PopoverContent>
-                </Popover>
+                  ) : (
+                    <video
+                      src={draft.mediaUrl}
+                      controls
+                      className="w-full h-auto"
+                    />
+                  )}
+                </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-              {/* Time Picker */}
-              <div className="space-y-2">
-                <Label>Select Time</Label>
-                <input
-                  type="time"
-                  value={selectedTime}
-                  onChange={(e) => handleTimeChange(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
-
-              {selectedDate && (
-                <p className="text-sm text-muted-foreground">
-                  Post will be published on{' '}
-                  <span className="font-medium text-foreground">
-                    {format(selectedDate, 'PPP')} at {selectedTime}
-                  </span>
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Edit Button */}
+      <div className="flex justify-center">
+        <Button variant="outline" onClick={onBack}>
+          Edit Settings
+        </Button>
+      </div>
     </div>
   )
 }
