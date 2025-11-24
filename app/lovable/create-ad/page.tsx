@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { AdBuilder } from "@/components/ad-builder/ad-builder"
+import { AdConnectionGate } from "@/components/ad-builder/ad-connection-gate"
 import { CampaignProvider } from "@/lib/context/campaign-context"
 import { LovableLayout } from "@/components/lovable/lovable-layout"
 
@@ -96,7 +97,9 @@ export default function LovableCreateAdPage() {
   return (
     <LovableLayout>
       <CampaignProvider>
-        <AdBuilder lovableProjectId={lovableProjectId} />
+        <AdConnectionGate>
+          <AdBuilder lovableProjectId={lovableProjectId} />
+        </AdConnectionGate>
       </CampaignProvider>
     </LovableLayout>
   )

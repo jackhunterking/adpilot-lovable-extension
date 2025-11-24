@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const { searchParams, origin } = new URL(req.url)
     const code = searchParams.get('code')
     const state = searchParams.get('state')
-    const callbackType = searchParams.get('type') || 'user'
+    const connectionType = searchParams.get('type') || 'business' // business, facebook_page, or instagram
 
     // Validate code exists
     if (!code) {
@@ -58,18 +58,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${origin}/?meta=missing_code`)
     }
 
-    // Get campaign ID from cookie
+    // Get campaign ID from type-specific cookie
     const cookieStore = await cookies()
-    const campaignId = cookieStore.get('meta_cid')?.value || null
+    const cookieKey = `meta_cid_${connectionType}`
+    const campaignId = cookieStore.get(cookieKey)?.value || 
+                       cookieStore.get('meta_cid')?.value || // Fallback to old cookie for backward compatibility
+                       null
     
     if (!campaignId) {
-      metaLogger.error(CONTEXT, 'Missing campaign ID from cookie', 'No meta_cid cookie')
+      metaLogger.error(CONTEXT, 'Missing campaign ID from cookie', `No ${cookieKey} cookie`)
       return NextResponse.redirect(`${origin}/?meta=missing_campaign`)
     }
 
     metaLogger.info(CONTEXT, 'Processing OAuth callback', {
       campaignId,
-      callbackType,
+      connectionType,
       hasCode: true,
     })
 
@@ -97,7 +100,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${origin}/?meta=forbidden`)
     }
 
-    const redirectUri = `${origin}/api/v1/meta/auth/callback?type=${callbackType}`
+    const redirectUri = `${origin}/api/v1/meta/auth/callback?type=${connectionType}`
 
     // Step 1: Exchange code for tokens
     metaLogger.info(CONTEXT, 'Exchanging code for tokens')
@@ -144,49 +147,102 @@ export async function GET(req: NextRequest) {
     const fbUserId = await fetchUserId({ token: longToken })
     metaLogger.info(CONTEXT, 'Facebook user ID fetched', { fbUserId: fbUserId || 'null' })
 
-    // Step 4: Fetch businesses
-    metaLogger.info(CONTEXT, 'Fetching businesses')
-    const businesses = await fetchBusinesses({ token: longToken })
-    metaLogger.info(CONTEXT, 'Businesses fetched', { count: businesses.length })
+    // Step 4-7: Fetch assets based on connection type
+    let businesses: any[] = []
+    let pages: any[] = []
+    let adAccounts: any[] = []
+    let assets: any
 
-    if (businesses.length === 0) {
-      metaLogger.warn(CONTEXT, 'No businesses found for user')
-      return NextResponse.redirect(`${origin}/${campaignId}?meta=no_businesses`)
+    if (connectionType === 'business') {
+      // BUSINESS: Fetch all (businesses, pages, ad accounts)
+      metaLogger.info(CONTEXT, 'Fetching businesses for business connection')
+      businesses = await fetchBusinesses({ token: longToken })
+      metaLogger.info(CONTEXT, 'Businesses fetched', { count: businesses.length })
+
+      if (businesses.length === 0) {
+        metaLogger.warn(CONTEXT, 'No businesses found for user')
+        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_businesses`)
+      }
+
+      metaLogger.info(CONTEXT, 'Fetching ad accounts')
+      adAccounts = await fetchAdAccounts({ token: longToken })
+      metaLogger.info(CONTEXT, 'Ad accounts fetched', { count: adAccounts.length })
+
+      if (adAccounts.length === 0) {
+        metaLogger.warn(CONTEXT, 'No ad accounts found for user')
+        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_ad_accounts`)
+      }
+
+      metaLogger.info(CONTEXT, 'Fetching pages for business connection')
+      pages = await fetchPagesWithTokens({ token: longToken })
+      metaLogger.info(CONTEXT, 'Pages fetched', { count: pages.length })
+
+      assets = chooseAssets({ businesses, pages, adAccounts })
+    } else if (connectionType === 'facebook_page') {
+      // FACEBOOK PAGE: Fetch pages only
+      metaLogger.info(CONTEXT, 'Fetching pages for page connection')
+      pages = await fetchPagesWithTokens({ token: longToken })
+      metaLogger.info(CONTEXT, 'Pages fetched', { count: pages.length })
+
+      if (pages.length === 0) {
+        metaLogger.warn(CONTEXT, 'No pages found for user')
+        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_pages`)
+      }
+
+      // Choose first page
+      const firstPage = pages[0]
+      assets = {
+        page: {
+          id: firstPage.id,
+          name: firstPage.name,
+          access_token: firstPage.access_token,
+        },
+      }
+    } else if (connectionType === 'instagram') {
+      // INSTAGRAM: Fetch pages + Instagram accounts
+      metaLogger.info(CONTEXT, 'Fetching pages and Instagram accounts')
+      pages = await fetchPagesWithTokens({ token: longToken })
+      metaLogger.info(CONTEXT, 'Pages fetched', { count: pages.length })
+
+      if (pages.length === 0) {
+        metaLogger.warn(CONTEXT, 'No pages found (needed to get Instagram accounts)')
+        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_pages`)
+      }
+
+      // Find first page with Instagram account
+      const pageWithInstagram = pages.find((p: any) => p.instagram_business_account?.id)
+      
+      if (!pageWithInstagram) {
+        metaLogger.warn(CONTEXT, 'No Instagram Business accounts found')
+        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_instagram`)
+      }
+
+      assets = {
+        page: {
+          id: pageWithInstagram.id,
+          name: pageWithInstagram.name,
+          access_token: pageWithInstagram.access_token,
+        },
+        instagram: {
+          id: pageWithInstagram.instagram_business_account.id,
+          username: pageWithInstagram.instagram_business_account.username,
+        },
+      }
+    } else {
+      metaLogger.error(CONTEXT, 'Invalid connection type', new Error(`Unknown type: ${connectionType}`))
+      return NextResponse.redirect(`${origin}/${campaignId}?meta=invalid_type`)
     }
-
-    // Step 5: Fetch pages
-    metaLogger.info(CONTEXT, 'Fetching pages')
-    const pages = await fetchPagesWithTokens({ token: longToken })
-    metaLogger.info(CONTEXT, 'Pages fetched', { count: pages.length })
-
-    if (pages.length === 0) {
-      metaLogger.warn(CONTEXT, 'No pages found for user')
-      return NextResponse.redirect(`${origin}/${campaignId}?meta=no_pages`)
-    }
-
-    // Step 6: Fetch ad accounts
-    metaLogger.info(CONTEXT, 'Fetching ad accounts')
-    const adAccounts = await fetchAdAccounts({ token: longToken })
-    metaLogger.info(CONTEXT, 'Ad accounts fetched', { count: adAccounts.length })
-
-    if (adAccounts.length === 0) {
-      metaLogger.warn(CONTEXT, 'No ad accounts found for user')
-      return NextResponse.redirect(`${origin}/${campaignId}?meta=no_ad_accounts`)
-    }
-
-    // Step 7: Choose first assets (business, page, ad account)
-    metaLogger.info(CONTEXT, 'Choosing assets (first of each)')
-    const assets = chooseAssets({ businesses, pages, adAccounts })
     
     metaLogger.info(CONTEXT, 'Assets chosen', {
-      business: assets.business?.name,
-      page: assets.page?.name,
-      adAccount: assets.adAccount?.name,
+      connectionType,
+      business: assets.business?.name || 'none',
+      page: assets.page?.name || 'none',
+      adAccount: assets.adAccount?.name || 'none',
       instagram: assets.instagram?.username || 'none',
     })
 
     // Step 8: Persist connection to campaign_meta_connections
-    metaLogger.info(CONTEXT, 'Persisting connection to database')
+    metaLogger.info(CONTEXT, 'Persisting connection to database', { connectionType })
     
     try {
       await persistConnection({
@@ -195,15 +251,16 @@ export async function GET(req: NextRequest) {
         fbUserId,
         longToken,
         assets,
+        connectionType: connectionType as 'business' | 'facebook_page' | 'instagram',
       })
-      metaLogger.info(CONTEXT, 'Connection persisted successfully')
+      metaLogger.info(CONTEXT, 'Connection persisted successfully', { connectionType })
     } catch (err) {
       metaLogger.error(CONTEXT, 'Failed to persist connection', err as Error)
       return NextResponse.redirect(`${origin}/${campaignId}?meta=persist_failed`)
     }
 
-    // Step 9: Compute admin snapshot (roles)
-    if (assets.business && assets.adAccount) {
+    // Step 9: Compute admin snapshot (roles) - only for business connections
+    if (connectionType === 'business' && assets.business && assets.adAccount) {
       metaLogger.info(CONTEXT, 'Computing admin snapshot')
       
       try {
@@ -223,6 +280,7 @@ export async function GET(req: NextRequest) {
             admin_checked_at: new Date().toISOString(),
           })
           .eq('campaign_id', campaignId)
+          .eq('connection_type', connectionType)
 
         metaLogger.info(CONTEXT, 'Admin snapshot computed and stored', {
           adminConnected: adminSnapshot.admin_connected,
@@ -246,15 +304,18 @@ export async function GET(req: NextRequest) {
       // Non-fatal
     }
 
-    // Step 11: Clear cookie and redirect to success
-    const response = NextResponse.redirect(`${origin}/${campaignId}?meta=connected`)
+    // Step 11: Clear cookie and redirect to success with connection type info
+    const response = NextResponse.redirect(`${origin}/lovable/integrations?meta=connected&type=${connectionType}`)
     
-    // Clear the campaign ID cookie
+    // Clear the type-specific campaign ID cookie
+    response.cookies.delete(`meta_cid_${connectionType}`)
+    // Also clear old generic cookie for backward compatibility
     response.cookies.delete('meta_cid')
     
     metaLogger.info(CONTEXT, 'OAuth callback completed successfully', {
       campaignId,
-      redirectUrl: `${origin}/${campaignId}?meta=connected`,
+      connectionType,
+      redirectUrl: `${origin}/lovable/integrations?meta=connected&type=${connectionType}`,
     })
 
     return response
@@ -262,13 +323,15 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     metaLogger.error(CONTEXT, 'Unexpected error in OAuth callback', error as Error)
     
-    const { origin } = new URL(req.url)
+    const { origin, searchParams } = new URL(req.url)
+    const connectionType = searchParams.get('type') || 'business'
     const cookieStore = await cookies()
-    const campaignId = cookieStore.get('meta_cid')?.value
+    const campaignId = cookieStore.get(`meta_cid_${connectionType}`)?.value || 
+                       cookieStore.get('meta_cid')?.value
     
     const redirectUrl = campaignId 
-      ? `${origin}/${campaignId}?meta=error`
-      : `${origin}/?meta=error`
+      ? `${origin}/lovable/integrations?meta=error&type=${connectionType}`
+      : `${origin}/lovable/integrations?meta=error`
     
     return NextResponse.redirect(redirectUrl)
   }

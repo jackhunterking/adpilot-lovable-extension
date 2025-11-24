@@ -154,6 +154,39 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Invalid campaign configuration')
     }
 
+    // Validate Meta connections: Ads require all three connection types
+    console.log('[POST /api/v1/ads] Validating Meta connections...')
+    const { data: connections, error: connectionsError } = await supabaseServer
+      .from('campaign_meta_connections')
+      .select('connection_type, connection_status')
+      .eq('campaign_id', finalCampaignId)
+      .in('connection_type', ['business', 'facebook_page', 'instagram'])
+
+    if (connectionsError) {
+      console.error('[POST /api/v1/ads] Error checking connections:', connectionsError)
+      throw new ValidationError('Failed to verify Meta connections')
+    }
+
+    // Check that all three connection types are present and connected
+    const connectedTypes = new Set(
+      connections
+        ?.filter(c => c.connection_status === 'connected')
+        .map(c => c.connection_type) || []
+    )
+
+    const requiredTypes = ['business', 'facebook_page', 'instagram']
+    const missingTypes = requiredTypes.filter(type => !connectedTypes.has(type))
+
+    if (missingTypes.length > 0) {
+      console.error('[POST /api/v1/ads] Missing connections:', missingTypes)
+      throw new ValidationError(
+        `Missing required Meta connections: ${missingTypes.join(', ')}. ` +
+        'Please connect all three (Business, Facebook Page, Instagram) in Integrations.'
+      )
+    }
+
+    console.log('[POST /api/v1/ads] ✅ All required connections present')
+
     // Create new ad
     const { data: ad, error } = await supabaseServer
       .from("ads")

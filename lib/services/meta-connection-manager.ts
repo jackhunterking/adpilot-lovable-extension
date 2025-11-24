@@ -12,6 +12,9 @@ import { metaLogger } from '@/lib/meta/logger'
 
 const CONTEXT = 'MetaConnectionManager'
 
+// Connection type for multi-platform support
+export type ConnectionType = 'business' | 'facebook_page' | 'instagram'
+
 // Meta connection data structure (stored in campaign_states.meta_connection_data)
 export interface MetaConnectionData {
   business?: {
@@ -58,9 +61,11 @@ export interface MetaConnectionSummary {
 /**
  * Get Meta connection data for a campaign from database
  * Reads from campaign_meta_connections and meta_tokens tables
+ * @param connectionType - Optional connection type filter (business, facebook_page, instagram)
  */
 export async function getCampaignMetaConnection(
-  campaignId: string
+  campaignId: string,
+  connectionType?: ConnectionType
 ): Promise<MetaConnectionData | null> {
   try {
     // Get current user
@@ -72,12 +77,18 @@ export async function getCampaignMetaConnection(
     }
 
     // Get connection from campaign_meta_connections table
-    const { data: connection, error } = await supabase
+    let query = supabase
       .from('campaign_meta_connections')
       .select('*')
       .eq('campaign_id', campaignId)
       .eq('user_id', user.id)
-      .maybeSingle()
+    
+    // Filter by connection type if specified
+    if (connectionType) {
+      query = query.eq('connection_type', connectionType)
+    }
+    
+    const { data: connection, error } = await query.maybeSingle()
 
     if (error) {
       metaLogger.error(CONTEXT, 'Failed to get connection from database', error)
@@ -154,10 +165,12 @@ export async function getCampaignMetaConnection(
 /**
  * Save Meta connection data for a campaign to database
  * Stores connection data in campaign_meta_connections table and tokens in meta_tokens table
+ * @param connectionType - Connection type to save (business, facebook_page, instagram)
  */
 export async function saveCampaignMetaConnection(
   campaignId: string,
-  connectionData: MetaConnectionData
+  connectionData: MetaConnectionData,
+  connectionType: ConnectionType = 'business'
 ): Promise<boolean> {
   try {
     metaLogger.info(CONTEXT, 'Saving Meta connection to database', { campaignId })
@@ -176,6 +189,7 @@ export async function saveCampaignMetaConnection(
       .upsert({
         campaign_id: campaignId,
         user_id: user.id,
+        connection_type: connectionType,
         fb_user_id: connectionData.fb_user_id || null,
         selected_business_id: connectionData.business?.id || null,
         selected_business_name: connectionData.business?.name || null,
@@ -184,7 +198,7 @@ export async function saveCampaignMetaConnection(
         selected_page_access_token: connectionData.page?.access_token || null,
         selected_ad_account_id: connectionData.adAccount?.id || null,
         selected_ad_account_name: connectionData.adAccount?.name || null,
-        ad_account_currency_code: connectionData.adAccount?.currency || 'USD',
+        ad_account_currency_code: connectionData.adAccount?.currency || null,
         selected_ig_user_id: connectionData.instagram?.id || null,
         selected_ig_username: connectionData.instagram?.username || null,
         ad_account_payment_connected: connectionData.payment_connected || false,
@@ -193,7 +207,7 @@ export async function saveCampaignMetaConnection(
         created_at: connectionData.connected_at,
         updated_at: connectionData.updated_at || new Date().toISOString(),
       }, {
-        onConflict: 'campaign_id,user_id'
+        onConflict: 'campaign_id,connection_type'
       })
       .select()
       .single()
@@ -241,10 +255,12 @@ export async function saveCampaignMetaConnection(
 
 /**
  * Update specific fields in Meta connection (partial update)
+ * @param connectionType - Connection type to update (defaults to 'business' for backward compatibility)
  */
 export async function updateCampaignMetaConnection(
   campaignId: string,
-  updates: Partial<MetaConnectionData>
+  updates: Partial<MetaConnectionData>,
+  connectionType?: ConnectionType
 ): Promise<boolean> {
   try {
     metaLogger.info(CONTEXT, 'Updating Meta connection in database', { campaignId })
@@ -301,11 +317,18 @@ export async function updateCampaignMetaConnection(
     }
 
     // Update campaign_meta_connections table
-    const { error } = await supabase
+    let updateQuery = supabase
       .from('campaign_meta_connections')
       .update(updateObj)
       .eq('campaign_id', campaignId)
       .eq('user_id', user.id)
+    
+    // Filter by connection type if specified
+    if (connectionType) {
+      updateQuery = updateQuery.eq('connection_type', connectionType)
+    }
+    
+    const { error } = await updateQuery
 
     if (error) {
       metaLogger.error(CONTEXT, 'Failed to update connection in database', error)
@@ -408,6 +431,31 @@ export async function getMetaAccessToken(campaignId: string): Promise<string | n
 }
 
 /**
+ * Get all three Meta connections for a campaign (business, page, instagram)
+ * Returns an object with connection data for each type
+ */
+export async function getCampaignMetaConnections(
+  campaignId: string
+): Promise<{
+  business: MetaConnectionData | null
+  page: MetaConnectionData | null
+  instagram: MetaConnectionData | null
+}> {
+  try {
+    const [business, page, instagram] = await Promise.all([
+      getCampaignMetaConnection(campaignId, 'business'),
+      getCampaignMetaConnection(campaignId, 'facebook_page'),
+      getCampaignMetaConnection(campaignId, 'instagram'),
+    ])
+
+    return { business, page, instagram }
+  } catch (error) {
+    metaLogger.error(CONTEXT, 'Exception getting all Meta connections', error as Error)
+    return { business: null, page: null, instagram: null }
+  }
+}
+
+/**
  * Check if Meta connection exists and is valid
  */
 export async function isMetaConnected(campaignId: string): Promise<boolean> {
@@ -424,19 +472,32 @@ export async function isMetaConnected(campaignId: string): Promise<boolean> {
 
 /**
  * Disconnect Meta (soft delete - marks as disconnected)
+ * @param connectionType - Optional connection type to disconnect (if not specified, disconnects all)
  */
-export async function disconnectMeta(campaignId: string): Promise<boolean> {
-  return await updateCampaignMetaConnection(campaignId, {
-    connection_status: 'disconnected',
-  } as Partial<MetaConnectionData>)
+export async function disconnectMeta(
+  campaignId: string,
+  connectionType?: ConnectionType
+): Promise<boolean> {
+  return await updateCampaignMetaConnection(
+    campaignId,
+    { connection_status: 'disconnected' } as Partial<MetaConnectionData>,
+    connectionType
+  )
 }
 
 /**
  * Clear Meta connection data (hard delete)
+ * @param connectionType - Optional connection type to delete (if not specified, deletes all)
  */
-export async function clearMetaConnection(campaignId: string): Promise<boolean> {
+export async function clearMetaConnection(
+  campaignId: string,
+  connectionType?: ConnectionType
+): Promise<boolean> {
   try {
-    metaLogger.info(CONTEXT, 'Clearing Meta connection from database', { campaignId })
+    metaLogger.info(CONTEXT, 'Clearing Meta connection from database', { 
+      campaignId,
+      connectionType: connectionType || 'all'
+    })
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -447,18 +508,28 @@ export async function clearMetaConnection(campaignId: string): Promise<boolean> 
     }
 
     // Delete from campaign_meta_connections table
-    const { error } = await supabase
+    let deleteQuery = supabase
       .from('campaign_meta_connections')
       .delete()
       .eq('campaign_id', campaignId)
       .eq('user_id', user.id)
+    
+    // Filter by connection type if specified
+    if (connectionType) {
+      deleteQuery = deleteQuery.eq('connection_type', connectionType)
+    }
+    
+    const { error } = await deleteQuery
 
     if (error) {
       metaLogger.error(CONTEXT, 'Failed to delete connection from database', error)
       return false
     }
 
-    metaLogger.info(CONTEXT, '✅ Successfully cleared Meta connection from database', { campaignId })
+    metaLogger.info(CONTEXT, '✅ Successfully cleared Meta connection from database', { 
+      campaignId,
+      connectionType: connectionType || 'all'
+    })
     return true
   } catch (error) {
     metaLogger.error(CONTEXT, 'Exception clearing Meta connection', error as Error)

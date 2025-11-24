@@ -43,19 +43,27 @@ export default function IntegrationsPage() {
   const integrations: Integration[] = [
     {
       id: 'meta-business',
-      name: 'Meta Business',
-      description: 'Connect your Meta Business account to create and manage Facebook and Instagram ads.',
+      name: 'Facebook Business (Meta Business)',
+      description: 'Connect your Meta Business account to create and manage Facebook and Instagram ads. Required for advertising.',
       icon: Facebook,
       status: metaStatus === 'connected' ? 'connected' : 'available',
       category: 'advertising'
     },
     {
-      id: 'facebook-auth',
-      name: 'Facebook Authentication',
-      description: 'Enable Facebook login for your users and access Facebook data.',
+      id: 'facebook-page',
+      name: 'Facebook Page',
+      description: 'Connect your Facebook Page to publish posts and organic content. Required for ads and Facebook posts.',
       icon: Facebook,
-      status: 'available',
-      category: 'auth'
+      status: facebookConnected ? 'connected' : 'available',
+      category: 'advertising'
+    },
+    {
+      id: 'instagram-account',
+      name: 'Instagram Account',
+      description: 'Connect your Instagram Business account to publish Instagram posts and stories.',
+      icon: Instagram,
+      status: instagramConnected ? 'connected' : 'available',
+      category: 'advertising'
     },
     {
       id: 'google-analytics',
@@ -205,15 +213,30 @@ export default function IntegrationsPage() {
           {integrations.map((integration) => {
             const Icon = integration.icon
             const isMetaBusiness = integration.id === 'meta-business'
+            const isFacebookPage = integration.id === 'facebook-page'
+            const isInstagramAccount = integration.id === 'instagram-account'
             const isConnected = integration.status === 'connected'
+            const isConnectionCard = isMetaBusiness || isFacebookPage || isInstagramAccount
             
             return (
               <Card key={integration.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-primary" />
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        integration.id === 'instagram-account' 
+                          ? 'bg-pink-500/10' 
+                          : integration.id === 'facebook-page'
+                          ? 'bg-blue-500/10'
+                          : 'bg-primary/10'
+                      }`}>
+                        <Icon className={`w-5 h-5 ${
+                          integration.id === 'instagram-account' 
+                            ? 'text-[#E4405F]' 
+                            : integration.id === 'facebook-page'
+                            ? 'text-[#1877F2]'
+                            : 'text-primary'
+                        }`} />
                       </div>
                       <div>
                         <CardTitle className="text-lg">{integration.name}</CardTitle>
@@ -234,7 +257,7 @@ export default function IntegrationsPage() {
                     <Button
                       className="w-full"
                       variant={isConnected ? "outline" : "default"}
-                      onClick={handleMetaConnect}
+                      onClick={() => metaActions.connectBusiness()}
                       disabled={isConnecting || isConnected}
                     >
                       {isConnecting ? (
@@ -247,7 +270,49 @@ export default function IntegrationsPage() {
                       ) : (
                         <>
                           <ExternalLink className="w-4 h-4 mr-2" />
-                          Connect
+                          Connect Business
+                        </>
+                      )}
+                    </Button>
+                  ) : isFacebookPage ? (
+                    <Button
+                      className="w-full"
+                      variant={isConnected ? "outline" : "default"}
+                      onClick={() => metaActions.connectPage()}
+                      disabled={isConnecting || isConnected}
+                    >
+                      {isConnecting ? (
+                        "Connecting..."
+                      ) : isConnected ? (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Connected
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Connect Page
+                        </>
+                      )}
+                    </Button>
+                  ) : isInstagramAccount ? (
+                    <Button
+                      className="w-full"
+                      variant={isConnected ? "outline" : "default"}
+                      onClick={() => metaActions.connectInstagram()}
+                      disabled={isConnecting || isConnected}
+                    >
+                      {isConnecting ? (
+                        "Connecting..."
+                      ) : isConnected ? (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Connected
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Connect Instagram
                         </>
                       )}
                     </Button>

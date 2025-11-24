@@ -12,9 +12,12 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { supabase } from "@/lib/supabase/client"
 
 export interface PlatformConnections {
+  businessConnected: boolean
   facebookConnected: boolean
   instagramConnected: boolean
   loading: boolean
+  businessName?: string
+  adAccountName?: string
   facebookPageName?: string
   instagramUsername?: string
   error?: string
@@ -23,6 +26,7 @@ export interface PlatformConnections {
 export function usePlatformConnections(): PlatformConnections {
   const { campaign } = useCampaignContext()
   const [connections, setConnections] = useState<PlatformConnections>({
+    businessConnected: false,
     facebookConnected: false,
     instagramConnected: false,
     loading: true,
@@ -32,6 +36,7 @@ export function usePlatformConnections(): PlatformConnections {
   useEffect(() => {
     if (!campaign?.id) {
       setConnections({
+        businessConnected: false,
         facebookConnected: false,
         instagramConnected: false,
         loading: false,
@@ -47,25 +52,16 @@ export function usePlatformConnections(): PlatformConnections {
       try {
         setConnections((prev) => ({ ...prev, loading: true }))
 
+        // Fetch all three connection types
         const { data, error } = await supabase
           .from("campaign_meta_connections")
-          .select("selected_page_id, selected_page_name, selected_ig_user_id, selected_ig_username")
+          .select("connection_type, selected_business_name, selected_ad_account_name, selected_page_id, selected_page_name, selected_ig_user_id, selected_ig_username, connection_status")
           .eq("campaign_id", campaign.id)
-          .single()
 
         if (error) {
-          // If no connection found, it's okay - just means not connected
-          if (error.code === "PGRST116") {
-            setConnections({
-              facebookConnected: false,
-              instagramConnected: false,
-              loading: false,
-            })
-            return
-          }
-
           console.error("[usePlatformConnections] Error fetching connections:", error)
           setConnections({
+            businessConnected: false,
             facebookConnected: false,
             instagramConnected: false,
             loading: false,
@@ -74,27 +70,50 @@ export function usePlatformConnections(): PlatformConnections {
           return
         }
 
-        const facebookConnected = !!data?.selected_page_id
-        const instagramConnected = !!data?.selected_ig_user_id
+        // No connections found
+        if (!data || data.length === 0) {
+          setConnections({
+            businessConnected: false,
+            facebookConnected: false,
+            instagramConnected: false,
+            loading: false,
+          })
+          return
+        }
+
+        // Parse connections by type
+        const businessConn = data.find((c) => c.connection_type === 'business')
+        const pageConn = data.find((c) => c.connection_type === 'facebook_page')
+        const instaConn = data.find((c) => c.connection_type === 'instagram')
+
+        const businessConnected = !!businessConn && businessConn.connection_status === 'connected'
+        const facebookConnected = !!pageConn && pageConn.connection_status === 'connected' && !!pageConn.selected_page_id
+        const instagramConnected = !!instaConn && instaConn.connection_status === 'connected' && !!instaConn.selected_ig_user_id
 
         setConnections({
+          businessConnected,
           facebookConnected,
           instagramConnected,
           loading: false,
-          facebookPageName: data?.selected_page_name || undefined,
-          instagramUsername: data?.selected_ig_username || undefined,
+          businessName: businessConn?.selected_business_name || undefined,
+          adAccountName: businessConn?.selected_ad_account_name || undefined,
+          facebookPageName: pageConn?.selected_page_name || undefined,
+          instagramUsername: instaConn?.selected_ig_username || undefined,
         })
 
         console.log("[usePlatformConnections] Connection status:", {
           campaignId: campaign.id,
+          businessConnected,
           facebookConnected,
           instagramConnected,
-          facebookPageName: data?.selected_page_name,
-          instagramUsername: data?.selected_ig_username,
+          businessName: businessConn?.selected_business_name,
+          facebookPageName: pageConn?.selected_page_name,
+          instagramUsername: instaConn?.selected_ig_username,
         })
       } catch (err) {
         console.error("[usePlatformConnections] Unexpected error:", err)
         setConnections({
+          businessConnected: false,
           facebookConnected: false,
           instagramConnected: false,
           loading: false,
@@ -119,17 +138,8 @@ export function usePlatformConnections(): PlatformConnections {
         (payload) => {
           console.log("[usePlatformConnections] Real-time update:", payload)
 
-          // Re-check connections when data changes
-          const newData = payload.new as any
-          if (newData) {
-            setConnections({
-              facebookConnected: !!newData.selected_page_id,
-              instagramConnected: !!newData.selected_ig_user_id,
-              loading: false,
-              facebookPageName: newData.selected_page_name || undefined,
-              instagramUsername: newData.selected_ig_username || undefined,
-            })
-          }
+          // Re-fetch all connections when any change occurs
+          void checkConnections()
         }
       )
       .subscribe()

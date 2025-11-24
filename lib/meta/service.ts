@@ -133,12 +133,15 @@ export async function persistConnection(args: {
   fbUserId: string | null
   longToken: string
   assets: MetaAssets
+  connectionType?: 'business' | 'facebook_page' | 'instagram'
 }): Promise<void> {
+  const connectionType = args.connectionType || 'business'
   // System-user tokens with "Never" expiration - set far future date
   const tokenExpiresAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString()
   const payload: CampaignMetaConnectionPayload = {
     campaign_id: args.campaignId,
     user_id: args.userId,
+    connection_type: connectionType,
     fb_user_id: args.fbUserId,
     long_lived_user_token: args.longToken,
     token_expires_at: tokenExpiresAt,
@@ -159,7 +162,7 @@ export async function persistConnection(args: {
 
   const { error } = await supabaseServer
     .from('campaign_meta_connections')
-    .upsert(payload, { onConflict: 'campaign_id' })
+    .upsert(payload, { onConflict: 'campaign_id,connection_type' })
 
   if (error) {
     // Do not log raw token
@@ -168,6 +171,7 @@ export async function persistConnection(args: {
       campaignId: args.campaignId,
       userId: args.userId,
       fbUserId: args.fbUserId,
+      connectionType,
       token: redactToken(args.longToken),
     })
     throw error

@@ -65,9 +65,10 @@ export function useMetaActions() {
   }, [campaign?.id])
 
   /**
-   * Initiate Meta OAuth connection flow
+   * Generic OAuth connection initiator
+   * @param connectionType - Type of connection: business, facebook_page, or instagram
    */
-  const connect = useCallback(() => {
+  const initiateConnection = useCallback((connectionType: 'business' | 'facebook_page' | 'instagram') => {
     if (!campaign?.id) {
       window.alert('Missing campaign ID')
       return
@@ -79,7 +80,7 @@ export function useMetaActions() {
       return
     }
 
-    const redirectUri = `${window.location.origin}/api/v1/meta/auth/callback?type=system`
+    const redirectUri = `${window.location.origin}/api/v1/meta/auth/callback?type=${connectionType}`
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID
     const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0'
     
@@ -111,14 +112,15 @@ export function useMetaActions() {
 
       metaLogger.info('useMetaActions', 'Initiating Meta connection', {
         campaignId: campaign.id,
+        connectionType,
         configId,
         graphVersion,
         hasFBSDK: typeof window !== 'undefined' && typeof (window as any).FB !== 'undefined',
       })
 
-      // Set cookie for callback
+      // Set type-specific cookie for callback
       const expires = new Date(Date.now() + 10 * 60 * 1000).toUTCString()
-      document.cookie = `meta_cid=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
+      document.cookie = `meta_cid_${connectionType}=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
 
       // Open popup with optimized specs for faster rendering
       let popup: Window | null = null
@@ -126,7 +128,7 @@ export function useMetaActions() {
         // Optimized popup parameters for faster load
         popup = window.open(
           url, 
-          'fb_biz_login', 
+          `fb_${connectionType}_login`, 
           'width=720,height=760,left=' + ((screen.width - 720) / 2) + ',top=' + ((screen.height - 760) / 2) + ',popup=yes,noopener,noreferrer'
         )
       } catch (e) {
@@ -135,9 +137,11 @@ export function useMetaActions() {
 
       // Handle popup blocked
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        const platformName = connectionType === 'business' ? 'Meta Business' : 
+                            connectionType === 'facebook_page' ? 'Facebook Page' : 'Instagram'
         const userWantsRedirect = window.confirm(
           'Pop-up was blocked by your browser!\n\n' +
-          'To connect your Meta account:\n' +
+          `To connect your ${platformName}:\n` +
           '1. Click "OK" to open in a new tab\n' +
           '2. Or enable pop-ups for this site and try again\n\n' +
           'Open in new tab?'
@@ -152,7 +156,7 @@ export function useMetaActions() {
         }
         setIsConnecting(false)
       } else {
-        metaLogger.info('useMetaActions', 'Popup opened successfully')
+        metaLogger.info('useMetaActions', 'Popup opened successfully', { connectionType })
         // Keep connecting state for 1 second to show feedback
         setTimeout(() => setIsConnecting(false), 1000)
       }
@@ -183,6 +187,35 @@ export function useMetaActions() {
       }, 100)
     }
   }, [campaign?.id])
+
+  /**
+   * Connect Meta Business (for ads)
+   */
+  const connectBusiness = useCallback(() => {
+    initiateConnection('business')
+  }, [initiateConnection])
+
+  /**
+   * Connect Facebook Page (for posts)
+   */
+  const connectPage = useCallback(() => {
+    initiateConnection('facebook_page')
+  }, [initiateConnection])
+
+  /**
+   * Connect Instagram (for posts)
+   */
+  const connectInstagram = useCallback(() => {
+    initiateConnection('instagram')
+  }, [initiateConnection])
+
+  /**
+   * Legacy connect method for backward compatibility
+   * Defaults to business connection
+   */
+  const connect = useCallback(() => {
+    connectBusiness()
+  }, [connectBusiness])
 
   /**
    * Meta disconnection is disabled to maintain campaign integrity
@@ -293,7 +326,10 @@ export function useMetaActions() {
   }, [campaign?.id])
 
   return {
-    connect,
+    connect, // Legacy - defaults to business
+    connectBusiness,
+    connectPage,
+    connectInstagram,
     addPayment,
     verifyPayment,
     getSummary,
