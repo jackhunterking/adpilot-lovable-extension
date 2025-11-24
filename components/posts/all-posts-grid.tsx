@@ -6,13 +6,14 @@
  */
 
 import { useState, useEffect } from "react"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tab"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { PostCard } from "./post-card"
 import { usePostService } from "@/lib/services/service-provider"
 import type { Post } from "@/lib/types/post"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Card } from "@/components/ui/card"
 
 interface AllPostsGridProps {
   campaignId?: string

@@ -323,3 +323,10 @@ export function getStageProgress(stage: keyof typeof STAGE_PROGRESS_MAP): number
   return STAGE_PROGRESS_MAP[stage];
 }
 
+/**
+ * Get Graph API version
+ */
+export function getGraphVersion(): string {
+  return META_API_VERSION;
+}
+
