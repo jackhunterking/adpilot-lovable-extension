@@ -21,6 +21,7 @@ import {
   metaServiceClient,
   publishServiceClient,
 } from './client';
+import { postServiceClient } from './client/post-service-client';
 import type {
   CampaignService,
   AdService,
@@ -32,6 +33,7 @@ import type {
   AnalyticsService,
   MetaService,
 } from './contracts';
+import type { PostService } from './contracts/post-service-contract';
 
 // ============================================================================
 // Service Context
@@ -47,6 +49,7 @@ interface ServiceContextValue {
   budgetService: BudgetService;
   analyticsService: AnalyticsService;
   metaService: MetaService;
+  postService: PostService;
 }
 
 const ServiceContext = createContext<ServiceContextValue | undefined>(undefined);
@@ -94,6 +97,7 @@ export function ServiceProvider({ children, services = {} }: ServiceProviderProp
     budgetService: services.budgetService || budgetServiceClient,
     analyticsService: services.analyticsService || analyticsServiceClient,
     metaService: services.metaService || metaServiceClient,
+    postService: services.postService || postServiceClient,
   };
 
   return (
@@ -188,5 +192,13 @@ export function useAnalyticsService(): AnalyticsService {
 export function useMetaService(): MetaService {
   const { metaService } = useServices();
   return metaService;
+}
+
+/**
+ * Get post service
+ */
+export function usePostService(): PostService {
+  const { postService } = useServices();
+  return postService;
 }
 

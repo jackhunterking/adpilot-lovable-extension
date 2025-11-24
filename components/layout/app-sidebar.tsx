@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, Settings, Megaphone, Zap } from "lucide-react"
+import { LayoutDashboard, Settings, Megaphone, Zap, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -14,6 +14,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, url: "/lovable?view=overview" },
   { label: "Ads", icon: Megaphone, url: "/lovable?view=all-ads" },
+  { label: "Posts", icon: MessageSquare, url: "/lovable/posts" },
   { label: "Integrations", icon: Zap, url: "/lovable/integrations" },
   { label: "Settings", icon: Settings, url: "/lovable/settings" },
 ]
