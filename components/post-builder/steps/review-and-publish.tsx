@@ -19,7 +19,7 @@ import { Facebook, Instagram, CalendarIcon, AlertCircle, ExternalLink } from "lu
 import { format } from "date-fns"
 import type { PostBuilderStepProps } from "@/lib/types/post"
 import { PostPreviewPanel } from "../post-preview-panel"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { usePostService } from "@/lib/services/service-provider"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { toast } from "sonner"
@@ -64,7 +64,7 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
     }
   }
 
-  const handlePublish = async () => {
+  const handlePublish = useCallback(async () => {
     if (!postId) {
       toast.error('Post ID not found. Please save your post first.')
       return
@@ -99,14 +99,14 @@ export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStep
     } finally {
       setIsPublishing(false)
     }
-  }
+  }, [postId, postService, router])
 
   // Expose publish handler to parent via callback
   useEffect(() => {
     if (onPublish) {
       onPublish(handlePublish)
     }
-  }, [onPublish])
+  }, [onPublish, handlePublish])
 
   // Check if Meta is connected
   const isMetaConnected = metaStatus === 'connected'
