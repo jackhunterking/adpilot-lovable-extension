@@ -54,6 +54,7 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   const [isSaving, setIsSaving] = useState(false)
   const [draftPostId, setDraftPostId] = useState<string | null>(editPostId || null)
   const isEditMode = !!editPostId
+  const [publishHandler, setPublishHandler] = useState<(() => Promise<void>) | null>(null)
   
   // Enter fullscreen mode on mount, exit on unmount
   useAutoFullscreen()
@@ -93,26 +94,58 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   const handleSaveAsDraft = async () => {
     setIsSaving(true)
     try {
-      console.log("[PostBuilder] Saving draft:", { draft, lovableProjectId, hasCampaign: !!campaign?.id, isEditMode })
+      console.log("[PostBuilder] ========== SAVE DRAFT START ==========")
+      console.log("[PostBuilder] Draft state:", {
+        hasPostText: !!draft.postText,
+        hasMediaUrl: !!draft.mediaUrl,
+        publishToFacebook: draft.publishToFacebook,
+        publishToInstagram: draft.publishToInstagram,
+        scheduleType: draft.scheduleType,
+      })
+      console.log("[PostBuilder] Context:", {
+        lovableProjectId,
+        hasCampaign: !!campaign?.id,
+        campaignId: campaign?.id,
+        isEditMode,
+        draftPostId,
+      })
       
       let postId = draftPostId
 
       // Create draft post if not editing
       if (!postId && !isEditMode) {
         const postName = `Draft Post - ${new Date().toLocaleString()}`
-        console.log("[PostBuilder] Creating post:", postName, "with lovableProjectId:", lovableProjectId)
+        console.log("[PostBuilder] Creating new post with name:", postName)
         
-        const result = await postService.createPost.execute({
+        const createPayload = {
           userId: '', // Will be set by API from auth
           ...(campaign?.id ? { campaignId: campaign.id } : {}),
           ...(lovableProjectId ? { lovableProjectId } : {}),
           name: postName,
-          status: 'draft',
+          status: 'draft' as const,
+        }
+        
+        console.log("[PostBuilder] Create post payload:", JSON.stringify(createPayload, null, 2))
+        
+        const result = await postService.createPost.execute(createPayload)
+
+        console.log("[PostBuilder] Create post result:", {
+          success: result.success,
+          hasData: !!result.data,
+          error: result.error,
         })
 
         if (!result.success) {
-          console.error("[PostBuilder] Failed to create post:", result.error)
-          throw new Error(result.error?.message || 'Failed to create draft post')
+          console.error("[PostBuilder] ❌ Failed to create post:", result.error)
+          const errorMsg = result.error?.message || 'Failed to create draft post'
+          toast.error(errorMsg)
+          throw new Error(errorMsg)
+        }
+
+        if (!result.data?.id) {
+          console.error("[PostBuilder] ❌ No post ID returned from create")
+          toast.error('Invalid response: no post ID received')
+          throw new Error('No post ID returned from create')
         }
 
         postId = result.data.id
@@ -121,9 +154,11 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
         console.log("[PostBuilder] ✅ Created draft post:", postId)
       }
 
-      // Save post data if we have any
+      // Save post data if we have a postId and any content
       if (postId && (draft.postText || draft.mediaUrl)) {
-        const saveResult = await postService.savePost.execute({
+        console.log("[PostBuilder] Saving post data to existing post:", postId)
+        
+        const savePayload = {
           postId,
           postText: draft.postText,
           mediaUrl: draft.mediaUrl,
@@ -132,28 +167,54 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
           publishToInstagram: draft.publishToInstagram,
           scheduleType: draft.scheduleType,
           scheduledAt: draft.scheduledAt,
+        }
+        
+        console.log("[PostBuilder] Save post payload:", JSON.stringify(savePayload, null, 2))
+        
+        const saveResult = await postService.savePost.execute(savePayload)
+
+        console.log("[PostBuilder] Save post result:", {
+          success: saveResult.success,
+          error: saveResult.error,
         })
 
         if (!saveResult.success) {
-          throw new Error(saveResult.error?.message || 'Failed to save post')
+          console.error("[PostBuilder] ❌ Failed to save post data:", saveResult.error)
+          const errorMsg = saveResult.error?.message || 'Failed to save post'
+          toast.error(errorMsg)
+          throw new Error(errorMsg)
         }
 
         toast.success(isEditMode ? "Post updated successfully" : "Post saved as draft")
         console.log("[PostBuilder] ✅ Post saved successfully")
-      } else {
+      } else if (postId) {
+        // Post created but no content yet
         toast.success(isEditMode ? "Post updated" : "Draft post created")
+        console.log("[PostBuilder] ✅ Draft post created (no content yet)")
+      } else {
+        console.error("[PostBuilder] ❌ No post ID available for saving")
+        toast.error('Unable to save: no post ID')
+        throw new Error('No post ID available')
       }
       
       // Refresh posts list
       if (refreshPosts) {
+        console.log("[PostBuilder] Refreshing posts list...")
         await refreshPosts()
       }
+      
+      console.log("[PostBuilder] ========== SAVE DRAFT END (SUCCESS) ==========")
       
       // Redirect to posts list
       router.push(`/lovable/posts`)
     } catch (error) {
-      console.error("Failed to save draft:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to save draft. Please try again.")
+      console.error("[PostBuilder] ========== SAVE DRAFT END (ERROR) ==========")
+      console.error("[PostBuilder] Error details:", error)
+      if (error instanceof Error) {
+        console.error("[PostBuilder] Error message:", error.message)
+        console.error("[PostBuilder] Error stack:", error.stack)
+      }
+      // Error toast already shown in the try block
     } finally {
       setIsSaving(false)
     }
@@ -161,6 +222,16 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
 
   const handleKeepEditing = () => {
     setShowExitDialog(false)
+  }
+
+  const handlePublishCallback = (handler: () => Promise<void>) => {
+    setPublishHandler(() => handler)
+  }
+
+  const handlePublishClick = async () => {
+    if (publishHandler) {
+      await publishHandler()
+    }
   }
 
   // Warn before leaving page if there are unsaved changes
@@ -243,6 +314,7 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
             onUpdate={handleUpdate}
             onNext={handleNext}
             onBack={handleBack}
+            onPublish={handlePublishCallback}
           />
         </div>
       </div>
@@ -261,25 +333,28 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
             Back
           </Button>
           
-          <Button
-            variant="default"
-            size="lg"
-            onClick={handleNext}
-            disabled={!canProceed}
-            className="min-w-[200px]"
-          >
-            {isLastStep ? (
-              <>
-                Complete Setup
-                <Check className="ml-2 h-4 w-4" />
-              </>
-            ) : (
-              <>
-                Next: {steps[currentStep]?.name}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+          {isLastStep ? (
+            <Button
+              variant="default"
+              size="lg"
+              onClick={handlePublishClick}
+              disabled={!canProceed || !publishHandler || !draftPostId}
+              className="min-w-[200px]"
+            >
+              {draft.scheduleType === 'scheduled' ? 'Schedule Post' : 'Publish Now'}
+            </Button>
+          ) : (
+            <Button
+              variant="default"
+              size="lg"
+              onClick={handleNext}
+              disabled={!canProceed}
+              className="min-w-[200px]"
+            >
+              Next: {steps[currentStep]?.name}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

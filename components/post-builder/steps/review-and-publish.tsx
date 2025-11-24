@@ -19,7 +19,7 @@ import { Facebook, Instagram, CalendarIcon, AlertCircle, ExternalLink } from "lu
 import { format } from "date-fns"
 import type { PostBuilderStepProps } from "@/lib/types/post"
 import { PostPreviewPanel } from "../post-preview-panel"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { usePostService } from "@/lib/services/service-provider"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { toast } from "sonner"
@@ -27,7 +27,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
-export function ReviewAndPublish({ draft, onUpdate }: PostBuilderStepProps) {
+export function ReviewAndPublish({ draft, onUpdate, onPublish }: PostBuilderStepProps) {
   const postService = usePostService()
   const router = useRouter()
   const { metaStatus } = useMetaConnection()
@@ -100,6 +100,13 @@ export function ReviewAndPublish({ draft, onUpdate }: PostBuilderStepProps) {
       setIsPublishing(false)
     }
   }
+
+  // Expose publish handler to parent via callback
+  useEffect(() => {
+    if (onPublish) {
+      onPublish(handlePublish)
+    }
+  }, [onPublish])
 
   // Check if Meta is connected
   const isMetaConnected = metaStatus === 'connected'
@@ -287,22 +294,6 @@ export function ReviewAndPublish({ draft, onUpdate }: PostBuilderStepProps) {
             )}
           </CardContent>
         </Card>
-
-        {/* Publish Button */}
-        <Button
-          size="lg"
-          className="w-full"
-          onClick={handlePublish}
-          disabled={!canPublish || isPublishing || !postId}
-        >
-          {isPublishing ? (
-            'Publishing...'
-          ) : draft.scheduleType === 'scheduled' ? (
-            'Schedule Post'
-          ) : (
-            'Publish Now'
-          )}
-        </Button>
       </div>
 
       {/* Right Column: Live Preview */}

@@ -49,6 +49,7 @@ export interface PostBuilderStepProps {
   onUpdate: (updates: Partial<PostDraft>) => void;
   onNext?: () => void;
   onBack?: () => void;
+  onPublish?: (publishHandler: () => Promise<void>) => void;
 }
 
 export interface PostAnalytics {

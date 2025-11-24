@@ -34,13 +34,6 @@ export function ExitConfirmationDialog({
   onKeepEditing,
   isSaving,
 }: ExitConfirmationDialogProps) {
-  const router = useRouter()
-
-  const handleDiscard = () => {
-    onOpenChange(false)
-    router.push('/lovable/posts')
-  }
-
   const handleSave = async () => {
     await onSaveAsDraft()
     onOpenChange(false)
@@ -55,14 +48,11 @@ export function ExitConfirmationDialog({
             You have unsaved changes. Would you like to save this post as a draft before leaving?
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleDiscard} disabled={isSaving}>
-            Discard Changes
-          </AlertDialogCancel>
+        <AlertDialogFooter className="gap-2">
           <Button variant="outline" onClick={onKeepEditing} disabled={isSaving}>
             Keep Editing
           </Button>
-          <AlertDialogAction onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -71,7 +61,7 @@ export function ExitConfirmationDialog({
             ) : (
               'Save Draft'
             )}
-          </AlertDialogAction>
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
