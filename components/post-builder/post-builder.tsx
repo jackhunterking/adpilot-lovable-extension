@@ -6,7 +6,7 @@
  * Steps: Content & Media → Platforms & Schedule → Review & Publish
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react"
@@ -54,7 +54,7 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
   const [isSaving, setIsSaving] = useState(false)
   const [draftPostId, setDraftPostId] = useState<string | null>(editPostId || null)
   const isEditMode = !!editPostId
-  const [publishHandler, setPublishHandler] = useState<(() => Promise<void>) | null>(null)
+  const publishHandlerRef = useRef<(() => Promise<void>) | null>(null)
   
   // Enter fullscreen mode on mount, exit on unmount
   useAutoFullscreen()
@@ -224,13 +224,13 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
     setShowExitDialog(false)
   }
 
-  const handlePublishCallback = (handler: () => Promise<void>) => {
-    setPublishHandler(() => handler)
-  }
+  const handlePublishCallback = useCallback((handler: () => Promise<void>) => {
+    publishHandlerRef.current = handler
+  }, [])
 
   const handlePublishClick = async () => {
-    if (publishHandler) {
-      await publishHandler()
+    if (publishHandlerRef.current) {
+      await publishHandlerRef.current()
     }
   }
 
@@ -338,7 +338,7 @@ export function PostBuilder({ lovableProjectId, initialDraft = {}, refreshPosts,
               variant="default"
               size="lg"
               onClick={handlePublishClick}
-              disabled={!canProceed || !publishHandler || !draftPostId}
+              disabled={!canProceed || !publishHandlerRef.current || !draftPostId}
               className="min-w-[200px]"
             >
               {draft.scheduleType === 'scheduled' ? 'Schedule Post' : 'Publish Now'}
