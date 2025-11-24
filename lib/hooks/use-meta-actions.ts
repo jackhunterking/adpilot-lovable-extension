@@ -80,7 +80,8 @@ export function useMetaActions() {
       return
     }
 
-    const redirectUri = `${window.location.origin}/api/v1/meta/auth/callback?type=${connectionType}`
+    // Use 'user' type to match whitelisted redirect URIs in Facebook App settings
+    const redirectUri = `${window.location.origin}/api/v1/meta/auth/callback?type=user`
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID
     const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0'
     
@@ -118,9 +119,12 @@ export function useMetaActions() {
         hasFBSDK: typeof window !== 'undefined' && typeof (window as any).FB !== 'undefined',
       })
 
-      // Set type-specific cookie for callback
+      // Set cookie with connection type info - callback will read both cookie and connectionType
+      // Store actual connectionType in cookie name for callback handler to use
       const expires = new Date(Date.now() + 10 * 60 * 1000).toUTCString()
-      document.cookie = `meta_cid_${connectionType}=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
+      // Store both: meta_cid_user (for redirect URI matching) and meta_cid_{connectionType} (for type detection)
+      document.cookie = `meta_cid_user=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
+      document.cookie = `meta_connection_type=${encodeURIComponent(connectionType)}; Path=/; Expires=${expires}; SameSite=Lax`
 
       // Open popup with optimized specs for faster rendering
       let popup: Window | null = null

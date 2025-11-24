@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
     const { searchParams, origin } = new URL(req.url)
     const code = searchParams.get('code')
     const state = searchParams.get('state')
-    const connectionType = searchParams.get('type') || 'business' // business, facebook_page, or instagram
+    // Redirect URI always uses type=user to match whitelisted URIs, but actual connection type is stored in cookie
+    const queryType = searchParams.get('type') || 'user'
 
     // Validate code exists
     if (!code) {
@@ -58,10 +59,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${origin}/?meta=missing_code`)
     }
 
-    // Get campaign ID from type-specific cookie
+    // Get campaign ID and connection type from cookies
     const cookieStore = await cookies()
-    const cookieKey = `meta_cid_${connectionType}`
-    const campaignId = cookieStore.get(cookieKey)?.value || 
+    // Read connection type from cookie (set during OAuth initiation)
+    const connectionType = cookieStore.get('meta_connection_type')?.value || 'business'
+    // Read campaign ID from user cookie (matches redirect URI type=user)
+    const campaignId = cookieStore.get('meta_cid_user')?.value || 
                        cookieStore.get('meta_cid')?.value || // Fallback to old cookie for backward compatibility
                        null
     
@@ -100,7 +103,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${origin}/?meta=forbidden`)
     }
 
-    const redirectUri = `${origin}/api/v1/meta/auth/callback?type=${connectionType}`
+    // Use 'user' type to match whitelisted redirect URIs
+    const redirectUri = `${origin}/api/v1/meta/auth/callback?type=user`
 
     // Step 1: Exchange code for tokens
     metaLogger.info(CONTEXT, 'Exchanging code for tokens')
