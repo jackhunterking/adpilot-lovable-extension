@@ -14,13 +14,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ImageIcon, Type, X, Sparkles, Upload } from "lucide-react"
+import { ImageIcon, Type, X, Sparkles, Upload, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { AdBuilderStepProps } from "@/lib/types/ad-builder"
 import { AdMockupFormatToggle } from "@/components/ad-mockup-format-toggle"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { AdMockup } from "@/components/ad-mockup"
 import { toast } from "sonner"
+import { useImageUpload } from "@/lib/hooks/use-image-upload"
+import { useCampaignContext } from "@/lib/context/campaign-context"
 import {
   PromptInput,
   PromptInputBody,
@@ -41,6 +43,8 @@ type CreativeAndCopyProps = AdBuilderStepProps
 
 export function CreativeAndCopy({ draft, onUpdate }: CreativeAndCopyProps) {
   const [activeTab, setActiveTab] = useState<'image' | 'copy'>('image')
+  const { campaign } = useCampaignContext()
+  const { uploadMultipleImages, isUploading, validateFiles } = useImageUpload()
   
   // Read from draft
   const images = draft.creative?.images || []
@@ -123,20 +127,63 @@ Requirements:
     // For now, mock implementation
   }
 
-  const handleManualImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleManualImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"))
+    
+    // Validate files first
+    const validation = validateFiles(files)
+    if (!validation.valid) {
+      validation.errors.forEach(error => toast.error(error))
+      return
+    }
 
-    imageFiles.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const url = e.target?.result as string
-        if (url && images.length < 3) {
-          updateCreative({ images: [...images, url].slice(0, 3) })
-        }
+    // Check if we have campaign and can upload
+    if (!campaign?.id) {
+      toast.error("Campaign not found. Please save your ad first.")
+      return
+    }
+
+    // Check image limit
+    const availableSlots = 3 - images.length
+    if (availableSlots <= 0) {
+      toast.error("Maximum 3 images allowed. Remove an image first.")
+      return
+    }
+
+    const filesToUpload = validation.validFiles.slice(0, availableSlots)
+    
+    if (filesToUpload.length < validation.validFiles.length) {
+      toast.info(`Uploading ${filesToUpload.length} of ${validation.validFiles.length} images (3 max)`)
+    }
+
+    try {
+      toast.info(`Uploading ${filesToUpload.length} image(s)...`)
+      
+      // Create a temporary ad ID if we don't have one yet
+      // In reality, the ad should be created first, but we'll use campaign ID as fallback
+      const adId = draft.creative?.images?.[0] ? 'temp-ad-id' : campaign.id
+      
+      const results = await uploadMultipleImages(filesToUpload, adId, campaign.id)
+      
+      const successfulUploads = results.filter(r => r.success && r.url)
+      const failedUploads = results.filter(r => !r.success)
+
+      if (successfulUploads.length > 0) {
+        const newImageUrls = successfulUploads.map(r => r.url!)
+        updateCreative({ images: [...images, ...newImageUrls].slice(0, 3) })
+        toast.success(`${successfulUploads.length} image(s) uploaded successfully`)
       }
-      reader.readAsDataURL(file)
-    })
+
+      if (failedUploads.length > 0) {
+        toast.error(`${failedUploads.length} upload(s) failed`)
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to upload images')
+    }
+
+    // Clear the file input
+    e.target.value = ''
   }
 
   const handleRemoveImage = (index: number) => {
@@ -204,9 +251,19 @@ Requirements:
                           size="sm"
                           className="w-full"
                           onClick={() => document.getElementById("manual-upload")?.click()}
+                          disabled={isUploading}
                         >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Image
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4 mr-2" />
+                              Upload Image
+                            </>
+                          )}
                         </Button>
                       </>
                     )}
@@ -226,64 +283,73 @@ Requirements:
                     <Button
                       variant="outline"
                       onClick={() => document.getElementById("manual-upload")?.click()}
+                      disabled={isUploading}
                     >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Image
-                    </Button>
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Image
+                        </>
+                      )}
                   </div>
                 )}
               </CardContent>
 
-              {/* BOTTOM: AI Prompt Input */}
-              <div className="border-t bg-muted/30 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600">
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
+              {/* BOTTOM: AI Prompt Input - HIDDEN (Feature temporarily disabled) */}
+              {false && (
+                <div className="border-t bg-muted/30 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600">
+                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className="text-sm font-medium">Generate with AI</span>
                   </div>
-                  <span className="text-sm font-medium">Generate with AI</span>
+                  
+                  <PromptInput
+                    onSubmit={handleImageAISubmit}
+                    accept="image/*"
+                    multiple
+                    maxFiles={3}
+                    maxFileSize={10 * 1024 * 1024}
+                    onError={(err) => toast.error(err.message)}
+                  >
+                    <PromptInputBody>
+                      <PromptInputAttachments>
+                        {(attachment) => <PromptInputAttachment data={attachment} />}
+                      </PromptInputAttachments>
+                      <PromptInputTextarea
+                        placeholder="Describe your ad image... (e.g., 'Modern workspace with laptop, blue gradient')"
+                        className="min-h-[80px]"
+                      />
+                    </PromptInputBody>
+                    <PromptInputFooter>
+                      <PromptInputTools>
+                        <PromptInputActionMenu>
+                          <PromptInputActionMenuTrigger />
+                          <PromptInputActionMenuContent>
+                            <PromptInputActionAddAttachments label="Attach references" />
+                          </PromptInputActionMenuContent>
+                        </PromptInputActionMenu>
+                      </PromptInputTools>
+                      <PromptInputSubmit />
+                    </PromptInputFooter>
+                  </PromptInput>
                 </div>
-                
-                <PromptInput
-                  onSubmit={handleImageAISubmit}
-                  accept="image/*"
-                  multiple
-                  maxFiles={3}
-                  maxFileSize={10 * 1024 * 1024}
-                  onError={(err) => toast.error(err.message)}
-                >
-                  <PromptInputBody>
-                    <PromptInputAttachments>
-                      {(attachment) => <PromptInputAttachment data={attachment} />}
-                    </PromptInputAttachments>
-                    <PromptInputTextarea
-                      placeholder="Describe your ad image... (e.g., 'Modern workspace with laptop, blue gradient')"
-                      className="min-h-[80px]"
-                    />
-                  </PromptInputBody>
-                  <PromptInputFooter>
-                    <PromptInputTools>
-                      <PromptInputActionMenu>
-                        <PromptInputActionMenuTrigger />
-                        <PromptInputActionMenuContent>
-                          <PromptInputActionAddAttachments label="Attach references" />
-                        </PromptInputActionMenuContent>
-                      </PromptInputActionMenu>
-                    </PromptInputTools>
-                    <PromptInputSubmit />
-                  </PromptInputFooter>
-                </PromptInput>
-              </div>
+              )}
             </Card>
           </TabsContent>
 
           {/* COPY TAB - Content at Top, Input at Bottom */}
           <TabsContent value="copy" className="mt-4">
             <Card className="flex flex-col" style={{ minHeight: '500px' }}>
-              {/* TOP: Copy Fields or Empty State */}
+              {/* TOP: Copy Fields - Always Show (Manual Input) */}
               <CardContent className="flex-1 pt-6 pb-4">
-                {hasCopy ? (
-                  // Has Copy - Show Fields
-                  <div className="space-y-4">
+                <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="headline" className="text-sm">
                         Headline <span className="text-destructive">*</span>
@@ -346,47 +412,35 @@ Requirements:
                       </Select>
                     </div>
                   </div>
-                ) : (
-                  // Empty State
-                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center space-y-4">
-                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                      <Type className="w-10 h-10 text-muted-foreground" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">No copy yet</h3>
-                      <p className="text-sm text-muted-foreground max-w-xs">
-                        Use AI below to generate compelling ad copy
-                      </p>
-                    </div>
-                  </div>
-                )}
               </CardContent>
 
-              {/* BOTTOM: AI Prompt Input */}
-              <div className="border-t bg-muted/30 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-purple-500 to-pink-600">
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
+              {/* BOTTOM: AI Prompt Input - HIDDEN (Feature temporarily disabled) */}
+              {false && (
+                <div className="border-t bg-muted/30 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-purple-500 to-pink-600">
+                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className="text-sm font-medium">Generate with AI</span>
                   </div>
-                  <span className="text-sm font-medium">Generate with AI</span>
+                  
+                  <PromptInput
+                    onSubmit={handleCopyAISubmit}
+                    onError={(err) => toast.error(err.message)}
+                  >
+                    <PromptInputBody>
+                      <PromptInputTextarea
+                        placeholder="Write copy for... (e.g., 'Emphasize ease of use, free trial, target busy professionals')"
+                        className="min-h-[80px]"
+                      />
+                    </PromptInputBody>
+                    <PromptInputFooter>
+                      <div className="flex-1" />
+                      <PromptInputSubmit />
+                    </PromptInputFooter>
+                  </PromptInput>
                 </div>
-                
-                <PromptInput
-                  onSubmit={handleCopyAISubmit}
-                  onError={(err) => toast.error(err.message)}
-                >
-                  <PromptInputBody>
-                    <PromptInputTextarea
-                      placeholder="Write copy for... (e.g., 'Emphasize ease of use, free trial, target busy professionals')"
-                      className="min-h-[80px]"
-                    />
-                  </PromptInputBody>
-                  <PromptInputFooter>
-                    <div className="flex-1" />
-                    <PromptInputSubmit />
-                  </PromptInputFooter>
-                </PromptInput>
-              </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>

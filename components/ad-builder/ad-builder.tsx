@@ -298,7 +298,7 @@ export function AdBuilder({ lovableProjectId, initialDraft = {}, refreshAds, edi
   const canProceed = (() => {
     switch (currentStep) {
       case 1: // Get Started
-        return !!draft.productContext && draft.productContext.trim().length > 0
+        return !!draft.goal
       case 2: // Creative & Copy
         return !!(draft.creative?.headline && draft.creative?.primaryText)
       case 3: // Target Location
