@@ -81,10 +81,38 @@ export function usePlatformConnections(): PlatformConnections {
           return
         }
 
+        // Debug: Log raw data from database
+        console.log("[usePlatformConnections] Raw data from database:", {
+          count: data.length,
+          data: data,
+          connectionTypes: data.map(c => c.connection_type)
+        })
+
         // Parse connections by type
         const businessConn = data.find((c) => c.connection_type === 'business')
         const pageConn = data.find((c) => c.connection_type === 'facebook_page')
         const instaConn = data.find((c) => c.connection_type === 'instagram')
+
+        // Debug: Log parsed connections
+        console.log("[usePlatformConnections] Parsed connections:", {
+          businessConn: businessConn ? {
+            type: businessConn.connection_type,
+            status: businessConn.connection_status,
+            hasBusinessId: !!businessConn.selected_business_name
+          } : null,
+          pageConn: pageConn ? {
+            type: pageConn.connection_type,
+            status: pageConn.connection_status,
+            hasPageId: !!pageConn.selected_page_id,
+            pageName: pageConn.selected_page_name
+          } : null,
+          instaConn: instaConn ? {
+            type: instaConn.connection_type,
+            status: instaConn.connection_status,
+            hasIgId: !!instaConn.selected_ig_user_id,
+            igUsername: instaConn.selected_ig_username
+          } : null
+        })
 
         // Check connection status with backward compatibility:
         // - If connection_status is explicitly set, use it
