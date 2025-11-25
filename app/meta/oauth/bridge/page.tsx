@@ -29,6 +29,8 @@ export default function MetaOAuthBridgePage() {
         status,
         type,
         hasData: !!dataParam,
+        hasOpener: !!opener,
+        canPostMessage: !!(opener && typeof opener.postMessage === "function"),
       });
 
       // Optional CSRF state check (client-side only)
@@ -54,16 +56,20 @@ export default function MetaOAuthBridgePage() {
       }
 
       if (opener && typeof opener.postMessage === "function") {
-        opener.postMessage(
-          {
-            type: "META_CONNECTED",
-            campaignId,
-            status,
-            connectionType: type,
-            connectionData,
-          },
-          origin
-        )
+        const messagePayload = {
+          type: "META_CONNECTED",
+          campaignId,
+          status,
+          connectionType: type,
+          connectionData,
+        }
+        
+        console.log('[MetaOAuthBridge] Sending postMessage to parent:', {
+          payload: messagePayload,
+          targetOrigin: origin
+        })
+        
+        opener.postMessage(messagePayload, origin)
 
         console.log('[MetaOAuthBridge] Posted message to parent, closing in 150ms');
 

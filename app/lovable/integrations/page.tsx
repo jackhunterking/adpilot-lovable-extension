@@ -82,13 +82,31 @@ export default function IntegrationsPage() {
   // Listen for OAuth popup completion
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      console.log('[IntegrationsPage] Message received:', {
+        origin: event.origin,
+        expectedOrigin: window.location.origin,
+        originMatch: event.origin === window.location.origin,
+        data: event.data
+      })
+      
       // Validate origin for security
-      if (event.origin !== window.location.origin) return
+      if (event.origin !== window.location.origin) {
+        console.warn('[IntegrationsPage] Message origin mismatch, ignoring')
+        return
+      }
       
       const data = event.data
+      console.log('[IntegrationsPage] Processing message:', data)
+      
       if (data?.type === 'META_CONNECTED') {
         const status = data?.status || 'connected'
         const connectionType = data?.connectionType
+        
+        console.log('[IntegrationsPage] META_CONNECTED received:', {
+          status,
+          connectionType,
+          fullData: data
+        })
         
         if (status === 'connected') {
           // Show success message based on connection type
@@ -100,8 +118,12 @@ export default function IntegrationsPage() {
             toast.success("Meta account connected successfully!")
           }
           
+          console.log('[IntegrationsPage] Reloading page in 500ms...')
           // Reload page to show updated connection status
-          setTimeout(() => window.location.reload(), 500)
+          setTimeout(() => {
+            console.log('[IntegrationsPage] Reloading now!')
+            window.location.reload()
+          }, 500)
         } else if (status.includes('error') || status.includes('no_')) {
           // Handle error states
           const errorMessages: Record<string, string> = {
