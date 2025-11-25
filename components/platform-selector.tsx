@@ -17,21 +17,24 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { usePlatform } from "@/lib/context/platform-context"
+import Image from "next/image"
 
 interface Platform {
   id: string
   name: string
-  logo: string // SVG or emoji
+  logo: string // SVG path or emoji
   available: boolean
   comingSoon?: boolean
+  isImage?: boolean // Flag to indicate if logo is an image path
 }
 
 const PLATFORMS: Platform[] = [
   {
     id: "meta",
     name: "Meta",
-    logo: "📘", // Facebook emoji as placeholder
+    logo: "/meta-logo.svg",
     available: true,
+    isImage: true,
   },
   {
     id: "tiktok",
@@ -75,8 +78,18 @@ export function PlatformSelector() {
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-2 w-full px-2 py-2 hover:bg-accent rounded-lg transition-colors">
           {/* Platform Logo */}
-          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
-            {currentPlatform.logo}
+          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            {currentPlatform.isImage ? (
+              <Image 
+                src={currentPlatform.logo} 
+                alt={`${currentPlatform.name} logo`}
+                width={24}
+                height={24}
+                className="text-primary"
+              />
+            ) : (
+              <span className="text-2xl">{currentPlatform.logo}</span>
+            )}
           </div>
 
           {/* Platform Name */}
@@ -107,8 +120,17 @@ export function PlatformSelector() {
             )}
           >
             {/* Platform Logo */}
-            <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center text-xl">
-              {platform.logo}
+            <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center">
+              {platform.isImage ? (
+                <Image 
+                  src={platform.logo} 
+                  alt={`${platform.name} logo`}
+                  width={20}
+                  height={20}
+                />
+              ) : (
+                <span className="text-xl">{platform.logo}</span>
+              )}
             </div>
 
             {/* Platform Name & Status */}

@@ -74,9 +74,22 @@ export function useMetaActions() {
       return
     }
 
-    const configId = process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_SYSTEM || process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID
+    // Map connection types to their specific config IDs (prioritize connection-specific, fallback to legacy)
+    const getConfigId = () => {
+      if (connectionType === 'facebook_page') {
+        return process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_FACEBOOK_PAGE
+      } else if (connectionType === 'instagram') {
+        return process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_INSTAGRAM
+      }
+      // Fallback to legacy config IDs
+      return process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_USER || 
+             process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_SYSTEM || 
+             process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID
+    }
+    
+    const configId = getConfigId()
     if (!configId) {
-      window.alert('Missing Facebook config ID')
+      window.alert(`Missing Facebook config ID for ${connectionType}`)
       return
     }
 

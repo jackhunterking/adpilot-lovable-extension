@@ -16,6 +16,9 @@ const EnvSchema = z.object({
   // New: split configs for system vs user login
   NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_SYSTEM: z.string().min(1).optional(),
   NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_USER: z.string().min(1).optional(),
+  // Connection-specific config IDs for posts functionality
+  NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_FACEBOOK_PAGE: z.string().min(1).optional(),
+  NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_INSTAGRAM: z.string().min(1).optional(),
 
   NEXT_PUBLIC_SUPABASE_URL: z.string().min(1),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),

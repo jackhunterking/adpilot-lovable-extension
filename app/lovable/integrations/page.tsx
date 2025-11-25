@@ -73,17 +73,9 @@ export default function IntegrationsPage() {
 
   const integrations: Integration[] = [
     {
-      id: 'meta-business',
-      name: 'Facebook Business (Meta Business)',
-      description: 'Connect your Meta Business account to create and manage Facebook and Instagram ads. Required for advertising.',
-      icon: Facebook,
-      status: metaStatus === 'connected' ? 'connected' : 'available',
-      category: 'advertising'
-    },
-    {
       id: 'facebook-page',
       name: 'Facebook Page',
-      description: 'Connect your Facebook Page to publish posts and organic content. Required for ads and Facebook posts.',
+      description: 'Connect your Facebook Page to publish posts and organic content.',
       icon: Facebook,
       status: facebookConnected ? 'connected' : 'available',
       category: 'advertising'
@@ -97,9 +89,17 @@ export default function IntegrationsPage() {
       category: 'advertising'
     },
     {
+      id: 'meta-business',
+      name: 'Facebook Business (Meta Business)',
+      description: 'Connect for advertising features. Coming Soon.',
+      icon: Facebook,
+      status: 'available',
+      category: 'advertising'
+    },
+    {
       id: 'pixel-tracking',
       name: 'Meta Pixel',
-      description: 'Track conversions and optimize ads with Meta Pixel.',
+      description: 'Track conversions and optimize ads. Coming Soon.',
       icon: Facebook,
       status: 'available',
       category: 'advertising'
@@ -155,9 +155,11 @@ export default function IntegrationsPage() {
             const isMetaBusiness = integration.id === 'meta-business'
             const isFacebookPage = integration.id === 'facebook-page'
             const isInstagramAccount = integration.id === 'instagram-account'
+            const isPixelTracking = integration.id === 'pixel-tracking'
             const isConnected = integration.status === 'connected'
             const isConnectionCard = isMetaBusiness || isFacebookPage || isInstagramAccount
             const currentlyDisconnecting = isDisconnecting === integration.id
+            const isComingSoon = isMetaBusiness || isPixelTracking
             
             return (
               <Card key={integration.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -196,44 +198,13 @@ export default function IntegrationsPage() {
                   
                   <div className="mt-4">
                     {isMetaBusiness ? (
-                      isConnected ? (
-                        <Button
-                          className="w-full"
-                          variant="outline"
-                          onClick={() => handleDisconnect(integration.id)}
-                          disabled={currentlyDisconnecting || isConnecting}
-                        >
-                          {currentlyDisconnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Disconnecting...
-                            </>
-                          ) : (
-                            <>
-                              <X className="w-4 h-4 mr-2" />
-                              Disconnect
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          className="w-full"
-                          onClick={() => metaActions.connectBusiness()}
-                          disabled={isConnecting || currentlyDisconnecting}
-                        >
-                          {isConnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Connect Business
-                            </>
-                          )}
-                        </Button>
-                      )
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        disabled
+                      >
+                        Coming Soon
+                      </Button>
                     ) : isFacebookPage ? (
                       isConnected ? (
                         <Button
@@ -312,7 +283,7 @@ export default function IntegrationsPage() {
                           )}
                         </Button>
                       )
-                    ) : (
+                    ) : isComingSoon ? (
                       <Button
                         className="w-full"
                         variant="outline"
@@ -320,7 +291,7 @@ export default function IntegrationsPage() {
                       >
                         Coming Soon
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>
