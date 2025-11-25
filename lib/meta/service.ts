@@ -142,6 +142,7 @@ export async function persistConnection(args: {
     campaign_id: args.campaignId,
     user_id: args.userId,
     connection_type: connectionType,
+    connection_status: 'connected',
     fb_user_id: args.fbUserId,
     long_lived_user_token: args.longToken,
     token_expires_at: tokenExpiresAt,
