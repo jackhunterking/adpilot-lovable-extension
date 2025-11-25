@@ -15,16 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Facebook, Instagram, MoreVertical, Edit, Copy, Trash2, BarChart3, Image as ImageIcon, Video, Calendar } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -32,6 +22,8 @@ import { usePostService } from "@/lib/services/service-provider"
 import type { Post } from "@/lib/types/post"
 import { format } from "date-fns"
 import { toast } from "sonner"
+import { DeletePostDialog } from "@/components/dialogs/delete-post-dialog"
+import { cn } from "@/lib/utils"
 
 interface PostCardProps {
   post: Post
@@ -64,7 +56,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     }
   }
 
-  const handleDelete = async () => {
+  const handleConfirmDelete = async () => {
     setIsDeleting(true)
     try {
       const result = await postService.deletePost.execute({ postId: post.id })
@@ -108,9 +100,25 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
   }
 
+  // Get status-based styling
+  const getStatusBorderClass = () => {
+    switch (post.status) {
+      case 'draft':
+        return 'border-l-4 border-l-gray-400'
+      case 'scheduled':
+        return 'border-l-4 border-l-blue-500'
+      case 'published':
+        return 'border-l-4 border-l-green-500'
+      case 'failed':
+        return 'border-l-4 border-l-red-500'
+      default:
+        return ''
+    }
+  }
+
   return (
     <>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <Card className={cn("overflow-hidden hover:shadow-lg transition-shadow", getStatusBorderClass())}>
         {/* Media Thumbnail */}
         {post.media_url && (
           <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
@@ -215,27 +223,14 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Post?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the post
-              {post.status === 'published' && ' (note: the post will remain on Facebook/Instagram)'}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletePostDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        postName={post.name}
+        postStatus={post.status}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </>
   )
 }

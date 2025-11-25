@@ -13,7 +13,7 @@ import { createServerClient } from '@/lib/supabase/server';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     const supabase = await createServerClient();
@@ -26,8 +26,9 @@ export async function GET(
       );
     }
 
+    const { postId } = await params;
     const result = await postServiceServer.getPost.execute({
-      postId: params.postId,
+      postId,
     });
 
     if (!result.success) {
@@ -61,7 +62,7 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     const supabase = await createServerClient();
@@ -74,9 +75,11 @@ export async function PATCH(
       );
     }
 
+    const { postId } = await params;
+
     // Verify ownership
     const getResult = await postServiceServer.getPost.execute({
-      postId: params.postId,
+      postId,
     });
 
     if (!getResult.success || getResult.data.user_id !== user.id) {
@@ -90,7 +93,7 @@ export async function PATCH(
     const { name, status } = body;
 
     const result = await postServiceServer.updatePost.execute({
-      postId: params.postId,
+      postId,
       name,
       status,
     });
@@ -118,7 +121,7 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     const supabase = await createServerClient();
@@ -131,9 +134,11 @@ export async function DELETE(
       );
     }
 
+    const { postId } = await params;
+
     // Verify ownership
     const getResult = await postServiceServer.getPost.execute({
-      postId: params.postId,
+      postId,
     });
 
     if (!getResult.success || getResult.data.user_id !== user.id) {
@@ -144,7 +149,7 @@ export async function DELETE(
     }
 
     const result = await postServiceServer.deletePost.execute({
-      postId: params.postId,
+      postId,
     });
 
     if (!result.success) {
