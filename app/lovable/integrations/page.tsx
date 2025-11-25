@@ -262,142 +262,151 @@ export default function IntegrationsPage() {
             const isInstagramAccount = integration.id === 'instagram-account'
             const isPixelTracking = integration.id === 'pixel-tracking'
             const isConnected = integration.status === 'connected'
-            const isConnectionCard = isMetaBusiness || isFacebookPage || isInstagramAccount
             const currentlyDisconnecting = isDisconnecting === integration.id
             const isComingSoon = isMetaBusiness || isPixelTracking
             
+            // Get account details for connected state
+            const accountName = isInstagramAccount ? instagramUsername : 
+                               isFacebookPage ? facebookPageName : 
+                               null
+            
+            // Render connected state
+            if (isConnected && accountName) {
+              return (
+                <Card key={integration.id} className="hover:shadow-lg transition-shadow flex flex-col h-full relative border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20">
+                  {/* Connected Badge - Top Right */}
+                  <div className="absolute top-4 right-4">
+                    <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20">
+                      <Check className="w-3 h-3 mr-1" />
+                      Connected
+                    </Badge>
+                  </div>
+
+                  <CardContent className="flex flex-col items-center justify-center text-center p-6 flex-1 space-y-4">
+                    {/* Profile Icon/Avatar - Centered, Larger */}
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                      integration.id === 'instagram-account' 
+                        ? 'bg-gradient-to-br from-[#E4405F] via-[#C13584] to-[#833AB4]' 
+                        : integration.id === 'facebook-page'
+                        ? 'bg-[#1877F2]'
+                        : 'bg-primary'
+                    }`}>
+                      <Icon className="w-8 h-8 text-white" />
+                    </div>
+
+                    {/* Account Name */}
+                    <div className="space-y-1">
+                      <p className="text-base font-medium">
+                        {isInstagramAccount && accountName ? `@${accountName}` : accountName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{integration.name}</p>
+                      <p className="text-xs text-green-600 dark:text-green-400">Connected</p>
+                    </div>
+
+                    {/* Disconnect Button */}
+                    <Button
+                      className="w-full mt-auto"
+                      variant="outline"
+                      onClick={() => handleDisconnect(integration.id)}
+                      disabled={currentlyDisconnecting || isConnecting}
+                    >
+                      {currentlyDisconnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Disconnecting...
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-4 h-4 mr-2" />
+                          Disconnect
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            }
+            
+            // Render disconnected state (vertical centered layout)
             return (
               <Card key={integration.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        integration.id === 'instagram-account' 
-                          ? 'bg-pink-500/10' 
-                          : integration.id === 'facebook-page'
-                          ? 'bg-blue-500/10'
-                          : 'bg-primary/10'
-                      }`}>
-                        <Icon className={`w-5 h-5 ${
-                          integration.id === 'instagram-account' 
-                            ? 'text-[#E4405F]' 
-                            : integration.id === 'facebook-page'
-                            ? 'text-[#1877F2]'
-                            : 'text-primary'
-                        }`} />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{integration.name}</CardTitle>
-                        <CardDescription className="text-xs capitalize mt-1">
-                          {integration.category}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    {getStatusBadge(integration.status)}
+                <CardContent className="flex flex-col items-center justify-center text-center p-6 flex-1 space-y-4">
+                  {/* Icon - Centered, Larger */}
+                  <div className={`w-14 h-14 rounded-lg flex items-center justify-center ${
+                    integration.id === 'instagram-account' 
+                      ? 'bg-pink-500/10' 
+                      : integration.id === 'facebook-page'
+                      ? 'bg-blue-500/10'
+                      : 'bg-primary/10'
+                  }`}>
+                    <Icon className={`w-7 h-7 ${
+                      integration.id === 'instagram-account' 
+                        ? 'text-[#E4405F]' 
+                        : integration.id === 'facebook-page'
+                        ? 'text-[#1877F2]'
+                        : 'text-primary'
+                    }`} />
                   </div>
-                </CardHeader>
-                <CardContent className="flex flex-col flex-1">
+
+                  {/* Title and Subtitle */}
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg">{integration.name}</CardTitle>
+                    <CardDescription className="text-xs capitalize">
+                      {integration.category}
+                    </CardDescription>
+                  </div>
+
+                  {/* Description */}
                   <p className="text-sm text-muted-foreground flex-1">
                     {integration.description}
                   </p>
                   
-                  <div className="mt-4">
-                    {isMetaBusiness ? (
-                      <Button
-                        className="w-full"
-                        variant="outline"
-                        disabled
-                      >
-                        Coming Soon
-                      </Button>
-                    ) : isFacebookPage ? (
-                      isConnected ? (
-                        <Button
-                          className="w-full"
-                          variant="outline"
-                          onClick={() => handleDisconnect(integration.id)}
-                          disabled={currentlyDisconnecting || isConnecting}
-                        >
-                          {currentlyDisconnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Disconnecting...
-                            </>
-                          ) : (
-                            <>
-                              <X className="w-4 h-4 mr-2" />
-                              Disconnect
-                            </>
-                          )}
-                        </Button>
+                  {/* Action Button */}
+                  {isComingSoon ? (
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      disabled
+                    >
+                      Coming Soon
+                    </Button>
+                  ) : isFacebookPage ? (
+                    <Button
+                      className="w-full"
+                      onClick={handleConnectPage}
+                      disabled={isConnecting || currentlyDisconnecting}
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Connecting...
+                        </>
                       ) : (
-                        <Button
-                          className="w-full"
-                          onClick={handleConnectPage}
-                          disabled={isConnecting || currentlyDisconnecting}
-                        >
-                          {isConnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Connect Page
-                            </>
-                          )}
-                        </Button>
-                      )
-                    ) : isInstagramAccount ? (
-                      isConnected ? (
-                        <Button
-                          className="w-full"
-                          variant="outline"
-                          onClick={() => handleDisconnect(integration.id)}
-                          disabled={currentlyDisconnecting || isConnecting}
-                        >
-                          {currentlyDisconnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Disconnecting...
-                            </>
-                          ) : (
-                            <>
-                              <X className="w-4 h-4 mr-2" />
-                              Disconnect
-                            </>
-                          )}
-                        </Button>
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Connect Page
+                        </>
+                      )}
+                    </Button>
+                  ) : isInstagramAccount ? (
+                    <Button
+                      className="w-full"
+                      onClick={handleConnectInstagram}
+                      disabled={isConnecting || currentlyDisconnecting}
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Connecting...
+                        </>
                       ) : (
-                        <Button
-                          className="w-full"
-                          onClick={handleConnectInstagram}
-                          disabled={isConnecting || currentlyDisconnecting}
-                        >
-                          {isConnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Connect Instagram
-                            </>
-                          )}
-                        </Button>
-                      )
-                    ) : isComingSoon ? (
-                      <Button
-                        className="w-full"
-                        variant="outline"
-                        disabled
-                      >
-                        Coming Soon
-                      </Button>
-                    ) : null}
-                  </div>
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Connect Instagram
+                        </>
+                      )}
+                    </Button>
+                  ) : null}
                 </CardContent>
               </Card>
             )
