@@ -89,11 +89,24 @@ export default function IntegrationsPage() {
         data: event.data
       })
       
-      // Validate origin for security
-      if (event.origin !== window.location.origin) {
-        console.warn('[IntegrationsPage] Message origin mismatch, ignoring')
+      // Validate origin for security - accept messages from our domains or lovable.dev iframe context
+      const validOrigins = [
+        window.location.origin, // Current origin (staging or production)
+        'https://staging.adpilot.studio',
+        'https://adpilot.studio',
+        'https://lovable.dev', // Lovable iframe context
+      ]
+      
+      const isValidOrigin = validOrigins.some(validOrigin => 
+        event.origin === validOrigin || event.origin.endsWith('.adpilot.studio')
+      )
+      
+      if (!isValidOrigin) {
+        console.warn('[IntegrationsPage] Message from untrusted origin, ignoring:', event.origin)
         return
       }
+      
+      console.log('[IntegrationsPage] Origin validated, processing message')
       
       const data = event.data
       console.log('[IntegrationsPage] Processing message:', data)

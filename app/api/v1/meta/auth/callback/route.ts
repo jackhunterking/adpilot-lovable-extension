@@ -262,7 +262,19 @@ export async function GET(req: NextRequest) {
     })
 
     // Step 8: Persist connection to campaign_meta_connections
-    metaLogger.info(CONTEXT, 'Persisting connection to database', { connectionType })
+    metaLogger.info(CONTEXT, 'Persisting connection to database', { 
+      connectionType,
+      campaignId,
+      userId: user.id,
+      fbUserId,
+      hasToken: !!longToken,
+      assets: {
+        hasBusiness: !!assets.business,
+        hasPage: !!assets.page,
+        hasInstagram: !!assets.instagram,
+        hasAdAccount: !!assets.adAccount,
+      }
+    })
     
     try {
       await persistConnection({
@@ -275,8 +287,13 @@ export async function GET(req: NextRequest) {
       })
       metaLogger.info(CONTEXT, 'Connection persisted successfully', { connectionType })
     } catch (err) {
-      metaLogger.error(CONTEXT, 'Failed to persist connection', err as Error)
-      return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=persist_failed`)
+      metaLogger.error(CONTEXT, 'Failed to persist connection', err as Error, {
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        connectionType,
+        campaignId,
+      })
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=persist_failed&type=${connectionType}`)
     }
 
     // Step 9: Compute admin snapshot (roles) - only for business connections
