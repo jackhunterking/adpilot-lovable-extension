@@ -35,15 +35,23 @@ export default function IntegrationsPage() {
   const { facebookConnected, instagramConnected, facebookPageName, instagramUsername } = usePlatformConnections()
   const metaService = useMetaService()
   const { campaign } = useCampaignContext()
-  const [isConnecting, setIsConnecting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const fromPosts = searchParams?.get('from') === 'posts'
 
+  // Use isConnecting from metaActions instead of local state
+  const isConnecting = metaActions.isConnecting
+
   const handleMetaConnect = () => {
-    setIsConnecting(true)
     metaActions.connect()
-    setTimeout(() => setIsConnecting(false), 1000)
+  }
+
+  const handleConnectInstagram = () => {
+    metaActions.connectInstagram()
+  }
+
+  const handleConnectPage = () => {
+    metaActions.connectPage()
   }
 
   const handleDisconnect = async (integrationId: string) => {
@@ -228,7 +236,7 @@ export default function IntegrationsPage() {
                       ) : (
                         <Button
                           className="w-full"
-                          onClick={() => metaActions.connectPage()}
+                          onClick={handleConnectPage}
                           disabled={isConnecting || currentlyDisconnecting}
                         >
                           {isConnecting ? (
@@ -267,7 +275,7 @@ export default function IntegrationsPage() {
                       ) : (
                         <Button
                           className="w-full"
-                          onClick={() => metaActions.connectInstagram()}
+                          onClick={handleConnectInstagram}
                           disabled={isConnecting || currentlyDisconnecting}
                         >
                           {isConnecting ? (
