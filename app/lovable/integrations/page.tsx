@@ -305,7 +305,7 @@ export default function IntegrationsPage() {
 
                     {/* Disconnect Button */}
                     <Button
-                      className="w-full mt-auto"
+                      className="w-full mt-auto cursor-pointer"
                       variant="outline"
                       onClick={() => handleDisconnect(integration.id)}
                       disabled={currentlyDisconnecting || isConnecting}
@@ -372,7 +372,7 @@ export default function IntegrationsPage() {
                     </Button>
                   ) : isFacebookPage ? (
                     <Button
-                      className="w-full"
+                      className="w-full cursor-pointer"
                       onClick={handleConnectPage}
                       disabled={isConnecting || currentlyDisconnecting}
                     >
@@ -390,7 +390,7 @@ export default function IntegrationsPage() {
                     </Button>
                   ) : isInstagramAccount ? (
                     <Button
-                      className="w-full"
+                      className="w-full cursor-pointer"
                       onClick={handleConnectInstagram}
                       disabled={isConnecting || currentlyDisconnecting}
                     >
