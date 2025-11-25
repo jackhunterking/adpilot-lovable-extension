@@ -1,23 +1,14 @@
-"use client"
-
 /**
- * Exit Confirmation Dialog for Post Builder
- * Prompts user to save draft before leaving
+ * Feature: Exit Confirmation Dialog for Post Builder
+ * Purpose: Prompts user to save draft before leaving
+ * Microservices: Thin wrapper around generic ConfirmationDialog
+ * References:
+ *  - ConfirmationDialog: components/ui/confirmation-dialog.tsx
  */
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
+"use client"
+
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 interface ExitConfirmationDialogProps {
   open: boolean
@@ -40,31 +31,21 @@ export function ExitConfirmationDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Save your post?</AlertDialogTitle>
-          <AlertDialogDescription>
-            You have unsaved changes. Would you like to save this post as a draft before leaving?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="gap-2">
-          <Button variant="outline" onClick={onKeepEditing} disabled={isSaving}>
-            Keep Editing
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Draft'
-            )}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmationDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Save your post?"
+      description={
+        <>
+          You have unsaved changes. Would you like to save this post as a draft before leaving?
+        </>
+      }
+      actionLabel="Save Draft"
+      cancelLabel="Keep Editing"
+      variant="default"
+      onConfirm={handleSave}
+      isLoading={isSaving}
+    />
   )
 }
 
