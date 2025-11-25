@@ -86,9 +86,22 @@ export function usePlatformConnections(): PlatformConnections {
         const pageConn = data.find((c) => c.connection_type === 'facebook_page')
         const instaConn = data.find((c) => c.connection_type === 'instagram')
 
-        const businessConnected = !!businessConn && businessConn.connection_status === 'connected'
-        const facebookConnected = !!pageConn && pageConn.connection_status === 'connected' && !!pageConn.selected_page_id
-        const instagramConnected = !!instaConn && instaConn.connection_status === 'connected' && !!instaConn.selected_ig_user_id
+        // Check connection status with backward compatibility:
+        // - If connection_status is explicitly set, use it
+        // - If connection_status is NULL but required fields exist, treat as connected (backward compat)
+        const businessConnected = !!businessConn && 
+          (businessConn.connection_status === 'connected' || 
+           (!businessConn.connection_status && !!businessConn.selected_business_id))
+        
+        const facebookConnected = !!pageConn && 
+          (pageConn.connection_status === 'connected' || 
+           (!pageConn.connection_status && !!pageConn.selected_page_id)) && 
+          !!pageConn.selected_page_id
+        
+        const instagramConnected = !!instaConn && 
+          (instaConn.connection_status === 'connected' || 
+           (!instaConn.connection_status && !!instaConn.selected_ig_user_id)) && 
+          !!instaConn.selected_ig_user_id
 
         setConnections({
           businessConnected,
