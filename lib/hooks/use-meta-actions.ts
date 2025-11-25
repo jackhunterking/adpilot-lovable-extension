@@ -108,7 +108,13 @@ export function useMetaActions() {
     
     // Wait for Facebook SDK to be ready (with timeout)
     const openPopupWhenReady = () => {
-      const state = generateRandomState(32)
+      // Encode campaign info in state for reliability (cookies may not work in popup context)
+      const statePayload = {
+        csrf: generateRandomState(16),
+        campaignId: campaign.id,
+        connectionType: connectionType,
+      }
+      const state = btoa(JSON.stringify(statePayload))
       
       try {
         sessionStorage.setItem('meta_oauth_state', state)
@@ -143,10 +149,11 @@ export function useMetaActions() {
       let popup: Window | null = null
       try {
         // Optimized popup parameters for faster load
+        // NOTE: Do NOT use noopener flag - it breaks window.opener.postMessage() communication
         popup = window.open(
           url, 
           `fb_${connectionType}_login`, 
-          'width=720,height=760,left=' + ((screen.width - 720) / 2) + ',top=' + ((screen.height - 760) / 2) + ',popup=yes,noopener,noreferrer'
+          'width=720,height=760,left=' + ((screen.width - 720) / 2) + ',top=' + ((screen.height - 760) / 2) + ',popup=yes'
         )
       } catch (e) {
         metaLogger.error('useMetaActions', 'Failed to open popup', e as Error)

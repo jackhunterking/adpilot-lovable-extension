@@ -59,14 +59,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${origin}/meta/oauth/bridge?meta=missing_code`)
     }
 
-    // Get campaign ID and connection type from cookies
-    const cookieStore = await cookies()
-    // Read connection type from cookie (set during OAuth initiation)
-    const connectionType = cookieStore.get('meta_connection_type')?.value || 'business'
-    // Read campaign ID from user cookie (matches redirect URI type=user)
-    const campaignId = cookieStore.get('meta_cid_user')?.value || 
-                       cookieStore.get('meta_cid')?.value || // Fallback to old cookie for backward compatibility
-                       null
+    // Get campaign ID and connection type - try state parameter first (most reliable), then cookies
+    let campaignId: string | null = null
+    let connectionType: string = 'business'
+    
+    // PRIMARY: Try to decode state parameter (contains campaignId + connectionType)
+    try {
+      const statePayload = JSON.parse(atob(state || ''))
+      campaignId = statePayload.campaignId || null
+      connectionType = statePayload.connectionType || 'business'
+      
+      metaLogger.info(CONTEXT, 'Campaign info extracted from state parameter', {
+        campaignId,
+        connectionType,
+      })
+    } catch (stateParseError) {
+      // FALLBACK: Try cookies if state parsing fails
+      metaLogger.warn(CONTEXT, 'Failed to parse state, falling back to cookies', stateParseError as Error)
+      
+      const cookieStore = await cookies()
+      connectionType = cookieStore.get('meta_connection_type')?.value || 'business'
+      campaignId = cookieStore.get('meta_cid_user')?.value || 
+                   cookieStore.get('meta_cid')?.value || 
+                   null
+    }
     
     if (!campaignId) {
       metaLogger.error(CONTEXT, 'Missing campaign ID from cookie', 'No campaign ID cookie')

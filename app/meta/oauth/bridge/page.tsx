@@ -76,6 +76,23 @@ export default function MetaOAuthBridgePage() {
         console.warn('[MetaOAuthBridge] No opener found, navigating popup to integrations page');
         const typeParam = type ? `&type=${encodeURIComponent(type)}` : ''
         window.location.replace(`/lovable/integrations?meta=${encodeURIComponent(status)}${typeParam}`)
+      } else {
+        // Final fallback: No opener and no campaignId
+        console.warn('[MetaOAuthBridge] No opener and no campaignId, attempting fallback');
+        
+        // Try to close the popup
+        setTimeout(() => {
+          try { window.close() } catch { /* noop */ }
+        }, 150)
+        
+        // If closing fails (user will still see the page), redirect to integrations with error status
+        setTimeout(() => {
+          if (!window.closed) {
+            console.log('[MetaOAuthBridge] Window still open, redirecting to integrations');
+            const typeParam = type ? `&type=${encodeURIComponent(type)}` : ''
+            window.location.replace(`/lovable/integrations?meta=${encodeURIComponent(status)}${typeParam}`)
+          }
+        }, 300)
       }
     } catch (err) {
       // If anything goes wrong, just attempt to close
