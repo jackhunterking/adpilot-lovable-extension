@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
         queryParams: paramsLog,
         state,
       })
-      return NextResponse.redirect(`${origin}/?meta=missing_code`)
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?meta=missing_code`)
     }
 
     // Get campaign ID and connection type from cookies
@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
                        null
     
     if (!campaignId) {
-      metaLogger.error(CONTEXT, 'Missing campaign ID from cookie', `No ${cookieKey} cookie`)
-      return NextResponse.redirect(`${origin}/?meta=missing_campaign`)
+      metaLogger.error(CONTEXT, 'Missing campaign ID from cookie', 'No campaign ID cookie')
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?meta=missing_campaign`)
     }
 
     metaLogger.info(CONTEXT, 'Processing OAuth callback', {
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     
     if (!user) {
       metaLogger.error(CONTEXT, 'No authenticated user in callback context', new Error('unauthorized'))
-      return NextResponse.redirect(`${origin}/?meta=unauthorized`)
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?meta=unauthorized`)
     }
 
     // Verify campaign ownership
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
         campaignId,
         userId: user.id,
       })
-      return NextResponse.redirect(`${origin}/?meta=forbidden`)
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=forbidden`)
     }
 
     // Use 'user' type to match whitelisted redirect URIs
@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
       metaLogger.info(CONTEXT, 'Token exchange successful')
     } catch (err) {
       metaLogger.error(CONTEXT, 'Token exchange failed', err as Error)
-      return NextResponse.redirect(`${origin}/${campaignId}?meta=token_exchange_failed`)
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=token_exchange_failed`)
     }
 
     // Step 2: Store token in meta_tokens table
@@ -165,7 +165,7 @@ export async function GET(req: NextRequest) {
 
       if (businesses.length === 0) {
         metaLogger.warn(CONTEXT, 'No businesses found for user')
-        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_businesses`)
+        return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=no_businesses`)
       }
 
       metaLogger.info(CONTEXT, 'Fetching ad accounts')
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
 
       if (adAccounts.length === 0) {
         metaLogger.warn(CONTEXT, 'No ad accounts found for user')
-        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_ad_accounts`)
+        return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=no_ad_accounts`)
       }
 
       metaLogger.info(CONTEXT, 'Fetching pages for business connection')
@@ -190,7 +190,7 @@ export async function GET(req: NextRequest) {
 
       if (pages.length === 0) {
         metaLogger.warn(CONTEXT, 'No pages found for user')
-        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_pages`)
+        return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=no_pages`)
       }
 
       // Choose first page
@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
 
       if (pages.length === 0) {
         metaLogger.warn(CONTEXT, 'No pages found (needed to get Instagram accounts)')
-        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_pages`)
+        return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=no_pages`)
       }
 
       // Find first page with Instagram account
@@ -218,7 +218,7 @@ export async function GET(req: NextRequest) {
       
       if (!pageWithInstagram) {
         metaLogger.warn(CONTEXT, 'No Instagram Business accounts found')
-        return NextResponse.redirect(`${origin}/${campaignId}?meta=no_instagram`)
+        return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=no_instagram`)
       }
 
       assets = {
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
       }
     } else {
       metaLogger.error(CONTEXT, 'Invalid connection type', new Error(`Unknown type: ${connectionType}`))
-      return NextResponse.redirect(`${origin}/${campaignId}?meta=invalid_type`)
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=invalid_type`)
     }
     
     metaLogger.info(CONTEXT, 'Assets chosen', {
@@ -260,7 +260,7 @@ export async function GET(req: NextRequest) {
       metaLogger.info(CONTEXT, 'Connection persisted successfully', { connectionType })
     } catch (err) {
       metaLogger.error(CONTEXT, 'Failed to persist connection', err as Error)
-      return NextResponse.redirect(`${origin}/${campaignId}?meta=persist_failed`)
+      return NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=persist_failed`)
     }
 
     // Step 9: Compute admin snapshot (roles) - only for business connections
@@ -308,8 +308,8 @@ export async function GET(req: NextRequest) {
       // Non-fatal
     }
 
-    // Step 11: Clear cookie and redirect to success with connection type info
-    const response = NextResponse.redirect(`${origin}/lovable/integrations?meta=connected&type=${connectionType}`)
+    // Step 11: Clear cookie and redirect to bridge page for popup closing
+    const response = NextResponse.redirect(`${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=connected&type=${connectionType}`)
     
     // Clear the type-specific campaign ID cookie
     response.cookies.delete(`meta_cid_${connectionType}`)
@@ -319,7 +319,7 @@ export async function GET(req: NextRequest) {
     metaLogger.info(CONTEXT, 'OAuth callback completed successfully', {
       campaignId,
       connectionType,
-      redirectUrl: `${origin}/lovable/integrations?meta=connected&type=${connectionType}`,
+      redirectUrl: `${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=connected&type=${connectionType}`,
     })
 
     return response
@@ -333,9 +333,10 @@ export async function GET(req: NextRequest) {
     const campaignId = cookieStore.get(`meta_cid_${connectionType}`)?.value || 
                        cookieStore.get('meta_cid')?.value
     
+    // Use bridge page even for errors to properly close popup
     const redirectUrl = campaignId 
-      ? `${origin}/lovable/integrations?meta=error&type=${connectionType}`
-      : `${origin}/lovable/integrations?meta=error`
+      ? `${origin}/meta/oauth/bridge?campaignId=${campaignId}&meta=error&type=${connectionType}`
+      : `${origin}/meta/oauth/bridge?meta=error`
     
     return NextResponse.redirect(redirectUrl)
   }

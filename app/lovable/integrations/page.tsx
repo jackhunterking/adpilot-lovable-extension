@@ -79,6 +79,103 @@ export default function IntegrationsPage() {
     }
   }
 
+  // Listen for OAuth popup completion
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin for security
+      if (event.origin !== window.location.origin) return
+      
+      const data = event.data
+      if (data?.type === 'META_CONNECTED') {
+        const status = data?.status || 'connected'
+        const connectionType = data?.connectionType
+        
+        if (status === 'connected') {
+          // Show success message based on connection type
+          if (connectionType === 'instagram') {
+            toast.success("Instagram account connected successfully!")
+          } else if (connectionType === 'facebook_page') {
+            toast.success("Facebook Page connected successfully!")
+          } else {
+            toast.success("Meta account connected successfully!")
+          }
+          
+          // Reload page to show updated connection status
+          setTimeout(() => window.location.reload(), 500)
+        } else if (status.includes('error') || status.includes('no_')) {
+          // Handle error states
+          const errorMessages: Record<string, string> = {
+            'no_pages': 'No Facebook Pages found. Please create a page first.',
+            'no_instagram': 'No Instagram Business account found. Please connect one to your Facebook Page.',
+            'no_businesses': 'No Meta Business accounts found.',
+            'no_ad_accounts': 'No Ad Accounts found.',
+            'token_exchange_failed': 'Failed to exchange authorization code.',
+            'persist_failed': 'Failed to save connection.',
+            'unauthorized': 'You are not authorized.',
+            'forbidden': 'Access forbidden.',
+            'missing_code': 'Authorization code missing.',
+            'missing_campaign': 'Campaign not found.',
+          }
+          
+          const errorMessage = errorMessages[status] || `Connection failed: ${status}`
+          toast.error(errorMessage)
+        }
+      }
+    }
+    
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [searchParams])
+
+  // Handle OAuth callback URL parameters (fallback for when bridge doesn't work)
+  useEffect(() => {
+    const meta = searchParams?.get('meta')
+    const type = searchParams?.get('type')
+    
+    if (meta === 'connected') {
+      if (type === 'instagram') {
+        toast.success("Instagram account connected!")
+      } else if (type === 'facebook_page') {
+        toast.success("Facebook Page connected!")
+      } else {
+        toast.success("Meta account connected!")
+      }
+      
+      // Clean up URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('meta')
+      url.searchParams.delete('type')
+      window.history.replaceState({}, '', url)
+      
+      // Reload after a short delay
+      setTimeout(() => window.location.reload(), 500)
+    } else if (meta && (meta.includes('error') || meta.includes('no_') || meta === 'unauthorized' || meta === 'forbidden')) {
+      // Handle error states
+      const errorMessages: Record<string, string> = {
+        'no_pages': 'No Facebook Pages found. Please create a page first.',
+        'no_instagram': 'No Instagram Business account found. Please connect one to your Facebook Page.',
+        'no_businesses': 'No Meta Business accounts found.',
+        'no_ad_accounts': 'No Ad Accounts found.',
+        'token_exchange_failed': 'Failed to exchange authorization code.',
+        'persist_failed': 'Failed to save connection.',
+        'unauthorized': 'You are not authorized.',
+        'forbidden': 'Access forbidden.',
+        'missing_code': 'Authorization code missing.',
+        'missing_campaign': 'Campaign not found.',
+        'invalid_type': 'Invalid connection type.',
+      }
+      
+      const errorMessage = errorMessages[meta] || `Connection failed: ${meta}`
+      toast.error(errorMessage)
+      
+      // Clean up URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('meta')
+      url.searchParams.delete('type')
+      window.history.replaceState({}, '', url)
+    }
+  }, [searchParams])
+
   const integrations: Integration[] = [
     {
       id: 'facebook-page',

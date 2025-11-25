@@ -17,6 +17,7 @@ export default function MetaOAuthBridgePage() {
       const url = new URL(window.location.href)
       const campaignId = url.searchParams.get("campaignId") || undefined
       const status = url.searchParams.get("meta") || "connected"
+      const type = url.searchParams.get("type") || undefined
       const st = url.searchParams.get('st') || undefined
       const dataParam = url.searchParams.get('data') || undefined
 
@@ -26,6 +27,7 @@ export default function MetaOAuthBridgePage() {
       console.log('[MetaOAuthBridge] Processing bridge', {
         campaignId,
         status,
+        type,
         hasData: !!dataParam,
       });
 
@@ -57,6 +59,7 @@ export default function MetaOAuthBridgePage() {
             type: "META_CONNECTED",
             campaignId,
             status,
+            connectionType: type,
             connectionData,
           },
           origin
@@ -69,9 +72,10 @@ export default function MetaOAuthBridgePage() {
           try { window.close() } catch { /* noop */ }
         }, 150)
       } else if (campaignId) {
-        // Fallback: navigate the popup to the campaign page (opener will remain unchanged)
-        console.warn('[MetaOAuthBridge] No opener found, navigating popup to campaign page');
-        window.location.replace(`/${encodeURIComponent(campaignId)}?meta=${encodeURIComponent(status)}`)
+        // Fallback: navigate the popup to the integrations page (opener will remain unchanged)
+        console.warn('[MetaOAuthBridge] No opener found, navigating popup to integrations page');
+        const typeParam = type ? `&type=${encodeURIComponent(type)}` : ''
+        window.location.replace(`/lovable/integrations?meta=${encodeURIComponent(status)}${typeParam}`)
       }
     } catch (err) {
       // If anything goes wrong, just attempt to close
